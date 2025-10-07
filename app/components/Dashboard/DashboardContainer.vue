@@ -7,6 +7,7 @@
                 :zoom="canvas.scale"
                 :modo-pan-activo="modoPanActivo"
                 :modo-drag-activo="modoDragActivo"
+                :mapa-visible="mapaVisible"
                 @add-panel="handleAgregarPanel"
                 @reset-view="resetearVista"
                 @zoom-in="zoomIn"
@@ -16,6 +17,7 @@
                 @auto-organize-masonry="autoOrganizarPanelesMansory"
                 @toggle-pan="toggleModoPan"
                 @toggle-drag="toggleModoDrag"
+                @toggle-map="toggleMapa"
             />
 
             <!-- Contenedor del Canvas -->
@@ -41,7 +43,7 @@
                     <!-- Grid de fondo infinito -->
                     <div class="absolute pointer-events-none" :style="gridStyle"></div>
 
-                    <!-- Paneles - Usando el nuevo componente Panel modular -->
+                    <!-- Paneles -->
                     <Panel
                         v-for="panel in paneles"
                         :key="panel.id"
@@ -56,7 +58,7 @@
                 </div>
 
                 <!-- Indicador de coordenadas y modos -->
-                <div class="absolute bottom-4 left-4 space-y-2">
+                <div class="absolute bottom-4 left-4 space-y-2 pointer-events-none">
                     <!-- Info del canvas -->
                     <div class="px-3 py-2 bg-black/70 text-white text-xs rounded-lg font-mono">
                         <div>Canvas: X: {{ Math.round(canvas.x) }}, Y: {{ Math.round(canvas.y) }}</div>
@@ -84,9 +86,61 @@
                 </div>
 
                 <!-- Ayuda rápida flotante -->
+                <div
+                    v-if="mostrarAyuda"
+                    class="absolute top-4 right-4 px-4 py-3 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 max-w-sm"
+                >
+                    <div class="flex items-start justify-between mb-2">
+                        <h4 class="text-sm font-semibold text-gray-900 dark:text-white">Controles</h4>
+                        <UButton
+                            icon="i-heroicons-x-mark"
+                            size="xs"
+                            color="neutral"
+                            variant="ghost"
+                            @click="mostrarAyuda = false"
+                        />
+                    </div>
+                    <div class="space-y-1 text-xs text-gray-600 dark:text-gray-400">
+                        <div class="flex items-center gap-2">
+                            <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">Shift + Arrastrar</kbd>
+                            <span>Pan del canvas</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">Scroll</kbd>
+                            <span>Zoom in/out</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">Click en Mapa</kbd>
+                            <span>Navegar rápido</span>
+                        </div>
+                    </div>
+                </div>
 
+                <!-- Botón de ayuda -->
+                <UButton
+                    icon="i-heroicons-question-mark-circle"
+                    size="sm"
+                    color="neutral"
+                    variant="soft"
+                    class="absolute top-4 right-4"
+                    @click="mostrarAyuda = !mostrarAyuda"
+                />
             </div>
         </div>
+
+        <!-- Minimapa -->
+        <MiniMap
+            v-if="contenedorRef"
+            :paneles="paneles"
+            :canvas-x="canvas.x"
+            :canvas-y="canvas.y"
+            :canvas-scale="canvas.scale"
+            :container-width="contenedorRef?.clientWidth || 0"
+            :container-height="contenedorRef?.clientHeight || 0"
+            :visible="mapaVisible"
+            @navigate="navegarDesdeMapa"
+            @toggle="toggleMapa"
+        />
     </div>
 </template>
 
@@ -99,16 +153,17 @@ import { usePanelDrag } from '~/composables/usePanelDrag'
 import { usePanelResize } from '~/composables/usePanelResize'
 import { useCanvasPan } from '~/composables/useCanvasPan'
 
-// Importar componentes
 import Panel from '~/components/Panel.vue'
 import DashboardControls from '~/components/Dashboard/DashboardControls.vue'
+import MiniMap from '~/components/MiniMap.vue'
 
 const contenedorRef = ref<HTMLElement | null>(null)
 const mostrarAyuda = ref(false)
+const mapaVisible = ref(true)
 
 // Estados de los modos
-const modoPanActivo = ref(false)  // Pan del canvas activado por defecto
-const modoDragActivo = ref(true) // Drag de paneles activado por defecto
+const modoPanActivo = ref(true)
+const modoDragActivo = ref(true)
 
 // Composables
 const {
@@ -180,7 +235,6 @@ const obtenerCursorClase = computed(() => {
     if (canvas.value.panning) return 'cursor-grabbing'
     if (isDragging.value || isResizing.value) return ''
 
-    // Mostrar cursor según el modo activo
     if (modoPanActivo.value && !modoDragActivo.value) return 'cursor-grab'
     if (!modoPanActivo.value && modoDragActivo.value) return 'cursor-move'
     if (modoPanActivo.value && modoDragActivo.value) return 'cursor-grab'
@@ -188,11 +242,9 @@ const obtenerCursorClase = computed(() => {
     return 'cursor-default'
 })
 
-// Funciones para alternar modos
+// Funciones de modos
 const toggleModoPan = () => {
     modoPanActivo.value = !modoPanActivo.value
-
-    // Si se activa pan y estaba en panning, detenerlo
     if (!modoPanActivo.value && canvas.value.panning) {
         detenerPan()
     }
@@ -200,28 +252,33 @@ const toggleModoPan = () => {
 
 const toggleModoDrag = () => {
     modoDragActivo.value = !modoDragActivo.value
-
-    // Si se desactiva drag mientras se arrastra, soltar
     if (!modoDragActivo.value && isDragging.value) {
         soltarPanel()
     }
 }
 
-// Event Handlers - Mouse
+const toggleMapa = () => {
+    mapaVisible.value = !mapaVisible.value
+}
+
+// Navegación desde el minimapa
+const navegarDesdeMapa = (x: number, y: number) => {
+    canvas.value.x = x
+    canvas.value.y = y
+}
+
+// Event Handlers
 const handleMouseDown = (event: MouseEvent) => {
-    // Pan con Shift + Click o rueda del mouse (solo si modo pan está activo)
     if (modoPanActivo.value && (event.shiftKey || event.button === 1)) {
         iniciarPan(event)
         return
     }
 
-    // Pan con click izquierdo si solo está activo el modo pan
     if (modoPanActivo.value && !modoDragActivo.value && event.button === 0) {
         iniciarPan(event)
         return
     }
 
-    // Desactivar paneles al hacer click en el canvas
     if (!isDragging.value && !isResizing.value && event.target === contenedorRef.value) {
         desactivarTodos()
     }
@@ -263,14 +320,11 @@ const handleWheel = (event: WheelEvent) => {
 
 // Panel Handlers
 const iniciarArrastrePanel = (panel: PanelInterface, event: MouseEvent) => {
-    // Solo permitir arrastre si el modo drag está activo
     if (!modoDragActivo.value) return
-
     iniciarArrastre(panel, event, canvas.value.x, canvas.value.y, canvas.value.scale)
 }
 
 const iniciarRedimensionPanel = (panel: PanelInterface, event: MouseEvent) => {
-    // Redimensionamiento siempre permitido
     iniciarRedimension(panel, event, canvas.value.x, canvas.value.y, canvas.value.scale)
 }
 
@@ -285,13 +339,7 @@ const handleAgregarPanel = (tipo: PanelType) => {
     if (!contenedorRef.value) return
 
     const rect = contenedorRef.value.getBoundingClientRect()
-    agregarPanel(
-        tipo,
-        rect.width,
-        rect.height,
-        canvas.value.x,
-        canvas.value.y
-    )
+    agregarPanel(tipo, rect.width, rect.height, canvas.value.x, canvas.value.y)
 }
 
 // Zoom Controls
@@ -326,19 +374,15 @@ const autoOrganizarPanelesMansory = () => {
     resetearCanvas()
 }
 
-// Lifecycle Hooks
+// Lifecycle
 onMounted(() => {
-    // Crear paneles de ejemplo si no hay ninguno
     if (totalPaneles.value === 0 && contenedorRef.value) {
         const rect = contenedorRef.value.getBoundingClientRect()
-
-        // Agregar paneles de ejemplo con diferentes tipos
         agregarPanel('estadistica', rect.width, rect.height, 0, 0)
         agregarPanel('grafico', rect.width, rect.height, 0, 0)
         agregarPanel('lista', rect.width, rect.height, 0, 0)
     }
 
-    // Prevenir el comportamiento por defecto del botón central del mouse
     document.addEventListener('mousedown', (e) => {
         if (e.button === 1) e.preventDefault()
     })
@@ -362,12 +406,8 @@ onBeforeUnmount(() => {
 }
 
 @keyframes pulse {
-    0%, 100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.7;
-    }
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
 }
 
 .animate-pulse {

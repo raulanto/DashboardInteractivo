@@ -8,6 +8,13 @@
                 <span class="text-sm text-gray-500 dark:text-gray-400">paneles activos</span>
             </div>
         </div>
+
+
+        <UButton
+            icon="i-heroicons-map"
+            @click="$emit('toggle-map')"
+        >
+        </UButton>
         <div >
             <UTooltip text="Modo Pan: Mover el canvas">
                 <UButton
@@ -268,7 +275,8 @@ interface Props {
     totalPaneles: number
     zoom: number
     modoPanActivo: boolean
-    modoDragActivo: boolean
+    modoDragActivo: boolean,
+    mapaVisible: boolean
 }
 
 const props = defineProps<Props>()
@@ -283,6 +291,7 @@ const emit = defineEmits<{
     'auto-organize-masonry': []
     'toggle-pan': []
     'toggle-drag': []
+    'toggle-map': []
 }>()
 
 const toast = useToast()

@@ -79,7 +79,9 @@ export interface PanelSizePreset {
     width: number
     height: number
     minWidth: number
-    minHeight: number
+    minHeight: number,
+    maxWidth?: number
+    maxHeight?: number
 }
 
 export const PANEL_SIZE_PRESETS: Record<PanelType, PanelSizePreset> = {
@@ -87,43 +89,57 @@ export const PANEL_SIZE_PRESETS: Record<PanelType, PanelSizePreset> = {
         width: 280,
         height: 200,
         minWidth: 200,
-        minHeight: 150
+        minHeight: 150,
+        maxWidth: 600,
+        maxHeight: 400
     },
     grafico: {
         width: 400,
         height: 300,
         minWidth: 300,
-        minHeight: 250
+        minHeight: 250,
+        maxWidth: 900,
+        maxHeight: 600
     },
     lista: {
         width: 350,
         height: 400,
         minWidth: 280,
-        minHeight: 300
+        minHeight: 300,
+        maxWidth: 500,
+        maxHeight: 800
     },
     tabla: {
         width: 600,
         height: 400,
         minWidth: 400,
-        minHeight: 300
+        minHeight: 300,
+        maxWidth: 1200,
+        maxHeight: 800
     },
     mapa: {
         width: 500,
         height: 450,
         minWidth: 400,
-        minHeight: 400
+        minHeight: 400,
+        maxWidth: 1000,
+        maxHeight: 800
     },
     calendario: {
         width: 450,
         height: 500,
         minWidth: 350,
-        minHeight: 400
+        minHeight: 400,
+        maxWidth: 800,
+        maxHeight: 900
     },
     notas: {
         width: 300,
         height: 250,
         minWidth: 250,
-        minHeight: 200
+        minHeight: 200,
+        maxWidth: 600,
+        maxHeight: 600
     }
 }
 

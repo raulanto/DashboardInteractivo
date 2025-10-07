@@ -199,9 +199,22 @@ export const usePanelManager = () => {
         const panel = paneles.value.find(p => p.id === id)
         if (panel) {
             const preset = PANEL_SIZE_PRESETS[panel.tipo]
+
+            // Aplicar límites mínimos
+            let newWidth = Math.max(width, preset.minWidth)
+            let newHeight = Math.max(height, preset.minHeight)
+
+            // Aplicar límites máximos si existen
+            if (preset.maxWidth !== undefined) {
+                newWidth = Math.min(newWidth, preset.maxWidth)
+            }
+            if (preset.maxHeight !== undefined) {
+                newHeight = Math.min(newHeight, preset.maxHeight)
+            }
+
             panel.tamaño = {
-                width: Math.max(width, preset.minWidth),
-                height: Math.max(height, preset.minHeight)
+                width: newWidth,
+                height: newHeight
             }
         }
     }

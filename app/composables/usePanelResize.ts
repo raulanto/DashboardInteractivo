@@ -1,121 +1,92 @@
-// composables/usePanelResize.ts
-
 import { ref } from 'vue'
-import type { Panel, ResizeState } from '~/types/panel'
-import { validarTamanoMinimo } from '~/utils/panelHelpers'
+import type { Panel } from '~/types/panel'
+import { PANEL_SIZE_PRESETS } from '~/types/panel'
+import { usePanelManager } from './usePanelManager'
+
+const { actualizarTamano, activarPanel } = usePanelManager()
+
+const isResizing = ref(false)
+const panelActual = ref<Panel | null>(null)
+const startX = ref(0)
+const startY = ref(0)
+const startWidth = ref(0)
+const startHeight = ref(0)
 
 export const usePanelResize = () => {
-    const resizeState = ref<ResizeState>({
-        panel: null,
-        startX: 0,
-        startY: 0,
-        startWidth: 0,
-        startHeight: 0
-    })
-
-    const isResizing = ref(false)
-
-    /**
-     * Inicia el redimensionamiento de un panel
-     */
     const iniciarRedimension = (
         panel: Panel,
         event: MouseEvent,
-        canvasX: number = 0,
-        canvasY: number = 0,
-        canvasScale: number = 1
+        canvasX: number,
+        canvasY: number,
+        scale: number
     ) => {
+        isResizing.value = true
+        panelActual.value = panel
+        startX.value = event.clientX
+        startY.value = event.clientY
+        startWidth.value = panel.tamaño.width
+        startHeight.value = panel.tamaño.height
+
+        // Activar el panel al empezar a redimensionar
+        activarPanel(panel.id)
+
+        // Marcar como redimensionando
+        panel.redimensionando = true
+
         event.preventDefault()
         event.stopPropagation()
-
-        const clientX = (event.clientX - canvasX) / canvasScale
-        const clientY = (event.clientY - canvasY) / canvasScale
-
-        resizeState.value = {
-            panel,
-            startX: clientX,
-            startY: clientY,
-            startWidth: panel.tamaño.width,
-            startHeight: panel.tamaño.height
-        }
-
-        panel.redimensionando = true
-        panel.activo = true
-        isResizing.value = true
     }
 
-    /**
-     * Redimensiona el panel mientras se arrastra
-     */
     const redimensionarPanel = (
         event: MouseEvent,
-        canvasX: number = 0,
-        canvasY: number = 0,
-        canvasScale: number = 1
+        canvasX: number,
+        canvasY: number,
+        scale: number
     ) => {
-        if (!resizeState.value.panel || !isResizing.value) return
+        if (!isResizing.value || !panelActual.value) return
 
-        const clientX = (event.clientX - canvasX) / canvasScale
-        const clientY = (event.clientY - canvasY) / canvasScale
+        const deltaX = (event.clientX - startX.value) / scale
+        const deltaY = (event.clientY - startY.value) / scale
 
-        const deltaX = clientX - resizeState.value.startX
-        const deltaY = clientY - resizeState.value.startY
+        let newWidth = startWidth.value + deltaX
+        let newHeight = startHeight.value + deltaY
 
-        const nuevoWidth = resizeState.value.startWidth + deltaX
-        const nuevoHeight = resizeState.value.startHeight + deltaY
+        // Obtener límites del tipo de panel
+        const preset = PANEL_SIZE_PRESETS[panelActual.value.tipo]
 
-        // Validar tamaño mínimo según tipo de panel
-        const tamañoValidado = validarTamanoMinimo(
-            resizeState.value.panel.tipo,
-            nuevoWidth,
-            nuevoHeight
-        )
+        // Aplicar límites mínimos
+        newWidth = Math.max(newWidth, preset.minWidth)
+        newHeight = Math.max(newHeight, preset.minHeight)
 
-        resizeState.value.panel.tamaño = tamañoValidado
-    }
-
-    /**
-     * Finaliza el redimensionamiento
-     */
-    const finalizarRedimension = () => {
-        if (resizeState.value.panel) {
-            resizeState.value.panel.redimensionando = false
-            resizeState.value.panel.activo = false
+        // Aplicar límites máximos si existen
+        if (preset.maxWidth !== undefined) {
+            newWidth = Math.min(newWidth, preset.maxWidth)
+        }
+        if (preset.maxHeight !== undefined) {
+            newHeight = Math.min(newHeight, preset.maxHeight)
         }
 
-        resizeState.value = {
-            panel: null,
-            startX: 0,
-            startY: 0,
-            startWidth: 0,
-            startHeight: 0
+        // Actualizar el tamaño
+        actualizarTamano(panelActual.value.id, newWidth, newHeight)
+    }
+
+    const finalizarRedimension = () => {
+        if (panelActual.value) {
+            panelActual.value.redimensionando = false
         }
 
         isResizing.value = false
-    }
-
-    /**
-     * Cancela el redimensionamiento y restaura tamaño original
-     */
-    const cancelarRedimension = () => {
-        if (resizeState.value.panel) {
-            resizeState.value.panel.tamaño = {
-                width: resizeState.value.startWidth,
-                height: resizeState.value.startHeight
-            }
-            finalizarRedimension()
-        }
+        panelActual.value = null
+        startX.value = 0
+        startY.value = 0
+        startWidth.value = 0
+        startHeight.value = 0
     }
 
     return {
-        // State
-        resizeState,
         isResizing,
-
-        // Methods
         iniciarRedimension,
         redimensionarPanel,
-        finalizarRedimension,
-        cancelarRedimension
+        finalizarRedimension
     }
 }
