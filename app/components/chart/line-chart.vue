@@ -22,12 +22,15 @@ const xFormatter = (i: number) => data[i].month
 </script>
 
 <template>
-    <LineChart
-        :data="data"
-        :categories="categories"
-        :height="300"
-        :xFormatter="xFormatter"
-        xLabel="Month"
-        yLabel="Amount"
-    />
+    <client-only>
+        <LineChart
+            :data="data"
+            :categories="categories"
+            :height="300"
+            :xFormatter="xFormatter"
+            xLabel="Month"
+            yLabel="Amount"
+        />
+    </client-only>
+
 </template>

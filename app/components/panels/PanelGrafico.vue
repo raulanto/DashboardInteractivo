@@ -1,18 +1,51 @@
 <template>
     <div class="space-y-3">
-        <div v-for="(item, idx) in data.datos" :key="idx">
-            <div class="flex items-center justify-between mb-1">
-        <span class="text-xs font-medium text-gray-700 dark:text-gray-300">
-          {{ item.label }}
-        </span>
-                <UBadge :label="`${item.valor}%`" size="xs" color="primary" variant="subtle" />
-            </div>
-            <UProgress :value="item.valor" color="primary" />
-        </div>
+        <client-only>
+            <AreaChart
+                :data="AreaChartData"
+                :height="100"
+                :categories="categories"
+                :y-grid-line="true"
+                :x-formatter="xFormatter"
+                :curve-type="CurveType.MonotoneX"
+                :legend-position="LegendPosition.Top"
+                :hide-legend="false"
+            />
+        </client-only>
+
     </div>
 </template>
 
 <script setup lang="ts">
+interface AreaChartItem {
+    date: string
+    desktop: number
+    mobile: number
+}
+
+const categories: ComputedRef<Record<string, BulletLegendItemInterface>> =
+    computed(() => ({
+        desktop: {
+            name: 'Desktop',
+            color: '#3b82f6',
+        },
+        mobile: {
+            name: 'Mobile',
+            color: '#22c55e',
+        },
+    }))
+
+const AreaChartData: AreaChartItem[] = [
+    { date: '2024-04-01', desktop: 222, mobile: 150 },
+    { date: '2024-04-02', desktop: 180, mobile: 97 },
+    { date: '2024-04-03', desktop: 167, mobile: 120 },
+    { date: '2024-04-04', desktop: 260, mobile: 240 },
+    { date: '2024-04-05', desktop: 240, mobile: 290 },
+]
+
+const xFormatter = (tick: number): string => {
+    return `${AreaChartData[tick]?.date}`
+}
 interface GraficoItem {
     label: string
     valor: number
