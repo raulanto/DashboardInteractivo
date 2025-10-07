@@ -7,31 +7,50 @@ export interface PanelPosition {
     y: number
 }
 
+// Tipo para la configuración inicial de un panel
+export interface PanelConfig {
+    tipo: Panel['tipo']
+    titulo: string
+    data: PanelData
+    posicion?: {
+        x: number
+        y: number
+    }
+    tamaño?: {
+        width: number
+        height: number
+    }
+}
 export interface PanelSize {
     width: number
     height: number
 }
 
-export interface PanelData {
-    valor?: string | number
-    subtitulo?: string
-    items?: any[]
-    datos?: any
-}
+// export interface PanelData {
+//     valor?: string | number
+//     subtitulo?: string
+//     items?: any[]
+//     datos?: any
+// }
 
 export interface Panel {
     id: string
     titulo: string
-    tipo: PanelType
-    posicion: PanelPosition
-    tamaño: PanelSize
+    tipo: 'estadistica' | 'grafico' | 'lista' | 'tabla' | 'calendario' | 'mapa' | 'notas'
+    posicion: {
+        x: number
+        y: number
+    }
+    tamaño: {
+        width: number
+        height: number
+    }
     data: PanelData
-    activo: boolean
-    arrastrando: boolean
-    redimensionando: boolean
     zIndex: number
+    activo?: boolean
+    arrastrando?: boolean
+    redimensionando?: boolean
 }
-
 export interface CanvasState {
     x: number
     y: number
@@ -107,3 +126,54 @@ export const PANEL_SIZE_PRESETS: Record<PanelType, PanelSizePreset> = {
         minHeight: 200
     }
 }
+
+
+export interface EstadisticaData {
+    valor: string | number
+    subtitulo: string
+}
+
+export interface GraficoItem {
+    label: string
+    valor: number
+}
+
+export interface GraficoData {
+    datos: GraficoItem[]
+}
+
+export interface ListaItem {
+    id: number
+    titulo: string
+    estado: string
+}
+
+export interface ListaData {
+    items: ListaItem[]
+}
+
+export interface TablaData {
+    columnas: string[]
+    filas: (string | number)[][]
+}
+
+export interface CalendarioData {
+    eventos?: any[]
+}
+
+export interface MapaData {
+    ubicaciones?: any[]
+}
+
+export interface NotasData {
+    contenido?: string
+}
+
+export type PanelData =
+    | EstadisticaData
+    | GraficoData
+    | ListaData
+    | TablaData
+    | CalendarioData
+    | MapaData
+    | NotasData

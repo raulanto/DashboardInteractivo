@@ -1,11 +1,20 @@
-<script setup lang="ts">
-
-</script>
-
 <template>
-  $END$
+    <div>
+        <LazyDashboardContainer />
+    </div>
 </template>
 
-<style scoped>
+<script setup lang="ts">
 
+// Meta de la página
+definePageMeta({
+    layout: false
+})
+</script>
+
+<style>
+body {
+    margin: 0;
+    padding: 0;
+}
 </style>
