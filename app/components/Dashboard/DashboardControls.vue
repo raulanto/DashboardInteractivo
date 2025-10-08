@@ -108,7 +108,7 @@
                         v-model="busqueda"
                         icon="i-heroicons-magnifying-glass"
                         placeholder="Buscar tipo de panel..."
-                        class="mb-2"
+                        class="mb-2 w-full"
                     />
 
                     <!-- Lista de paneles filtrados -->

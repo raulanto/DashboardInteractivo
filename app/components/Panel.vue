@@ -8,12 +8,9 @@
     ]"
     >
         <UCard :ui="{
-
                 root: 'rounded-lg overflow-hidden',
                 header: 'p-2 sm:px-3',
                 body: 'p-0 sm:p-0',
-
-
         }"
         >
             <template #header>
@@ -106,6 +103,7 @@
                     :is="componentePanel"
                     :data="panel.data"
                     @update:contenido="actualizarContenido"
+                    @open-config="$emit('open-config')"
                 />
             </div>
         </UCard>
@@ -210,9 +208,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import type { Panel } from '~/types/panel'
-import { PANEL_SIZE_PRESETS } from '~/types/panel'
+import {computed} from 'vue'
+import type {Panel} from '~/types/panel'
+import {PANEL_SIZE_PRESETS} from '~/types/panel'
 import PanelEstadistica from '~/components/panels/PanelEstadistica.vue'
 import PanelGrafico from '~/components/panels/PanelGrafico.vue'
 import PanelLista from '~/components/panels/PanelLista.vue'
@@ -236,6 +234,7 @@ const emit = defineEmits<{
     'delete': []
     'duplicate': []
     'update:data': [data: any]
+    'open-config': []
 }>()
 
 // Mapeo de tipos a componentes

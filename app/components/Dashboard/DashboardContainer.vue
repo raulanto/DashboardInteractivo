@@ -54,6 +54,7 @@
                         @delete="eliminarPanel(panel.id)"
                         @duplicate="duplicarPanel(panel.id)"
                         @update:data="actualizarDataPanel(panel.id, $event)"
+                        @open-config="abrirConfigGrafico(panel)"
                     />
                 </div>
 
@@ -113,6 +114,10 @@
                             <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">Click en Mapa</kbd>
                             <span>Navegar rápido</span>
                         </div>
+                        <div class="flex items-center gap-2">
+                            <UIcon name="i-heroicons-cog-6-tooth" class="w-3 h-3" />
+                            <span>Configurar gráfico</span>
+                        </div>
                     </div>
                 </div>
 
@@ -141,6 +146,14 @@
             @navigate="navegarDesdeMapa"
             @toggle="toggleMapa"
         />
+
+        <!-- Slideover de configuración de gráfico -->
+        <SlideoverConfigGrafico
+            v-if="panelConfigurando"
+            v-model="slideoverConfigAbierto"
+            :data="panelConfigurando.data"
+            @save="guardarConfigGrafico"
+        />
     </div>
 </template>
 
@@ -156,6 +169,7 @@ import { useCanvasPan } from '~/composables/useCanvasPan'
 import Panel from '~/components/Panel.vue'
 import DashboardControls from '~/components/Dashboard/DashboardControls.vue'
 import MiniMap from '~/components/MiniMap.vue'
+import SlideoverConfigGrafico from '~/components/SlideoverConfigGrafico.vue'
 
 const contenedorRef = ref<HTMLElement | null>(null)
 const mostrarAyuda = ref(false)
@@ -164,6 +178,10 @@ const mapaVisible = ref(true)
 // Estados de los modos
 const modoPanActivo = ref(true)
 const modoDragActivo = ref(true)
+
+// Estado del Slideover de configuración
+const slideoverConfigAbierto = ref(false)
+const panelConfigurando = ref<PanelInterface | null>(null)
 
 // Composables
 const {
@@ -335,11 +353,34 @@ const actualizarDataPanel = (panelId: string, nuevaData: any) => {
     }
 }
 
+// Configuración de gráfico
+const abrirConfigGrafico = (panel: PanelInterface) => {
+    // Solo abrir si es un panel de tipo gráfico
+    if (panel.tipo !== 'grafico') return
+    console.log('Abriendo configuración para panel:', panel.id)
+    panelConfigurando.value = panel
+    slideoverConfigAbierto.value = true
+}
+
+const guardarConfigGrafico = (nuevaData: any) => {
+    if (panelConfigurando.value) {
+        actualizarDataPanel(panelConfigurando.value.id, nuevaData)
+        panelConfigurando.value = null
+    }
+}
+
 const handleAgregarPanel = (tipo: PanelType) => {
     if (!contenedorRef.value) return
 
     const rect = contenedorRef.value.getBoundingClientRect()
-    agregarPanel(tipo, rect.width, rect.height, canvas.value.x, canvas.value.y)
+    const nuevoPanel = agregarPanel(tipo, rect.width, rect.height, canvas.value.x, canvas.value.y)
+
+    // Si es un gráfico, abrir automáticamente la configuración
+    if (tipo === 'grafico' && nuevoPanel) {
+        setTimeout(() => {
+            abrirConfigGrafico(nuevoPanel)
+        }, 100)
+    }
 }
 
 // Zoom Controls

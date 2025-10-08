@@ -7,50 +7,24 @@ export interface PanelPosition {
     y: number
 }
 
-// Tipo para la configuración inicial de un panel
-export interface PanelConfig {
-    tipo: Panel['tipo']
-    titulo: string
-    data: PanelData
-    posicion?: {
-        x: number
-        y: number
-    }
-    tamaño?: {
-        width: number
-        height: number
-    }
-}
 export interface PanelSize {
     width: number
     height: number
 }
 
-// export interface PanelData {
-//     valor?: string | number
-//     subtitulo?: string
-//     items?: any[]
-//     datos?: any
-// }
-
 export interface Panel {
     id: string
     titulo: string
-    tipo: 'estadistica' | 'grafico' | 'lista' | 'tabla' | 'calendario' | 'mapa' | 'notas'
-    posicion: {
-        x: number
-        y: number
-    }
-    tamaño: {
-        width: number
-        height: number
-    }
+    tipo: PanelType
+    posicion: PanelPosition
+    tamaño: PanelSize
     data: PanelData
     zIndex: number
     activo?: boolean
     arrastrando?: boolean
     redimensionando?: boolean
 }
+
 export interface CanvasState {
     x: number
     y: number
@@ -79,7 +53,7 @@ export interface PanelSizePreset {
     width: number
     height: number
     minWidth: number
-    minHeight: number,
+    minHeight: number
     maxWidth?: number
     maxHeight?: number
 }
@@ -143,19 +117,38 @@ export const PANEL_SIZE_PRESETS: Record<PanelType, PanelSizePreset> = {
     }
 }
 
+// Tipo para la configuración inicial de un panel
+export interface PanelConfig {
+    tipo: PanelType
+    titulo: string
+    data: PanelData
+    posicion?: PanelPosition
+    tamaño?: PanelSize
+}
 
+// Tipos específicos para cada tipo de panel
 export interface EstadisticaData {
     valor: string | number
     subtitulo: string
 }
 
-export interface GraficoItem {
-    label: string
-    valor: number
+export interface GraficoDataPoint {
+    date: string
+    [key: string]: string | number
+}
+
+export interface GraficoSerie {
+    key: string
+    name: string
+    color: string
 }
 
 export interface GraficoData {
-    datos: GraficoItem[]
+    titulo?: string
+    datos: GraficoDataPoint[]
+    series: GraficoSerie[]
+    curveType?: string
+    legendPosition?: string
 }
 
 export interface ListaItem {
