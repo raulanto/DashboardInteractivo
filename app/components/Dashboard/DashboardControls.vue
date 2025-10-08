@@ -39,21 +39,6 @@
             </UTooltip>
         </div>
 
-        <UPopover mode="hover">
-            <UButton label="Open" color="neutral" variant="subtle" />
-
-            <template #content>
-                <div class="  px-4 py-3 bg-blue-600/90 text-white text-sm rounded-lg shadow-lg max-w-xs">
-                    <div class="font-semibold mb-1">⚡ Controles rápidos:</div>
-                    <div class="text-xs space-y-1 opacity-90">
-                        <div>• Shift + Click: Mover canvas</div>
-                        <div>• Scroll: Zoom in/out</div>
-                        <div>• Arrastrar panel: Mover</div>
-                        <div>• Esquina derecha: Redimensionar</div>
-                    </div>
-                </div>
-            </template>
-        </UPopover>
         <!-- Grupo de controles de vista -->
         <UFieldGroup size="md" orientation="horizontal">
             <UTooltip text="Resetear vista (R)">

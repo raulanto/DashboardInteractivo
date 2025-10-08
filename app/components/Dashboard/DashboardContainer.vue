@@ -85,51 +85,24 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Ayuda rápida flotante -->
-                <div
-                    v-if="mostrarAyuda"
-                    class="absolute top-4 right-4 px-4 py-3 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 max-w-sm"
-                >
-                    <div class="flex items-start justify-between mb-2">
-                        <h4 class="text-sm font-semibold text-gray-900 dark:text-white">Controles</h4>
-                        <UButton
-                            icon="i-heroicons-x-mark"
-                            size="xs"
-                            color="neutral"
-                            variant="ghost"
-                            @click="mostrarAyuda = false"
-                        />
-                    </div>
-                    <div class="space-y-1 text-xs text-gray-600 dark:text-gray-400">
-                        <div class="flex items-center gap-2">
-                            <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">Shift + Arrastrar</kbd>
-                            <span>Pan del canvas</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">Scroll</kbd>
-                            <span>Zoom in/out</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">Click en Mapa</kbd>
-                            <span>Navegar rápido</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <UIcon name="i-heroicons-cog-6-tooth" class="w-3 h-3" />
-                            <span>Configurar gráfico</span>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Botón de ayuda -->
-                <UButton
-                    icon="i-heroicons-question-mark-circle"
-                    size="sm"
-                    color="neutral"
-                    variant="soft"
-                    class="absolute top-4 right-4"
-                    @click="mostrarAyuda = !mostrarAyuda"
-                />
+                <UPopover mode="hover" class="absolute top-4 right-4">
+                    <UButton size="sm" icon="i-heroicons-question-mark-circle" color="neutral" variant="sort"/>
+
+                    <template #content>
+                        <div class="  px-4 py-3 bg-blue-600/90 text-white text-sm rounded-lg shadow-lg max-w-xs">
+                            <div class="font-semibold mb-1">⚡ Controles rápidos:</div>
+                            <div class="text-xs space-y-1 opacity-90">
+                                <div>• Shift + Click: Mover canvas</div>
+                                <div>• Scroll: Zoom in/out</div>
+                                <div>• Arrastrar panel: Mover</div>
+                                <div>• Esquina derecha: Redimensionar</div>
+                            </div>
+                        </div>
+                    </template>
+                </UPopover>
+
+
             </div>
         </div>
 
@@ -158,13 +131,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import type { PanelType, Panel as PanelInterface } from '~/types/panel'
+import {computed, onBeforeUnmount, onMounted, ref} from 'vue'
+import type {Panel as PanelInterface, PanelType} from '~/types/panel'
 
-import { usePanelManager } from '~/composables/usePanelManager'
-import { usePanelDrag } from '~/composables/usePanelDrag'
-import { usePanelResize } from '~/composables/usePanelResize'
-import { useCanvasPan } from '~/composables/useCanvasPan'
+import {usePanelManager} from '~/composables/usePanelManager'
+import {usePanelDrag} from '~/composables/usePanelDrag'
+import {usePanelResize} from '~/composables/usePanelResize'
+import {useCanvasPan} from '~/composables/useCanvasPan'
 
 import Panel from '~/components/Panel.vue'
 import DashboardControls from '~/components/Dashboard/DashboardControls.vue'

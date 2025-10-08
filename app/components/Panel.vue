@@ -13,8 +13,10 @@
                 body: 'p-0 sm:p-0',
         }"
         >
-            <template #header>
+
+            <template             v-if="dragEnabled" #header>
                 <div
+
                     class="flex justify-between items-start select-none transition-opacity"
                     :class="[
             dragEnabled ? 'cursor-grab active:cursor-grabbing' : 'cursor-default opacity-60',
