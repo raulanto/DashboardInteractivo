@@ -1,5 +1,5 @@
 <template>
-    <div class="h-full flex flex-col">
+    <div v-if="data" class="h-full flex flex-col">
         <!-- Encabezado con botón de configuración -->
         <div class="flex items-center justify-between mb-3 pb-2 border-b border-gray-200 dark:border-gray-700">
             <div class="flex items-center gap-2">
@@ -52,6 +52,11 @@
                 </div>
             </client-only>
         </div>
+    </div>
+    <div v-else>
+        <p  class="text-sm text-gray-600 dark:text-gray-400 p-4">
+            No hay datos para mostrar
+        </p>
     </div>
 </template>
 

@@ -4,16 +4,15 @@
         <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
             Calendario
         </h4>
-        <p class="text-sm text-gray-500 dark:text-gray-400">
-            Próximamente disponible
-        </p>
+        <UCalendar :default-value="defaultValue" />
     </div>
 </template>
 
 <script setup lang="ts">
+import {CalendarDate} from "@internationalized/date";
 interface Props {
     data?: any
 }
-
+const defaultValue = ref(new CalendarDate(2022, 2, 6))
 defineProps<Props>()
 </script>

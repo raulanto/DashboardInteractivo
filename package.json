@@ -10,6 +10,7 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@internationalized/date": "^3.10.0",
     "@nuxt/ui": "^4.0.1",
     "@vercel/analytics": "^1.5.0",
     "grid-layout-plus": "^1.1.0",
