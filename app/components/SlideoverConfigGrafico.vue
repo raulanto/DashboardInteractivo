@@ -1,13 +1,6 @@
 <template>
     <USlideover v-model:open="isOpen" :ui="{ width: 'max-w-2xl' }" title="Configurar Gráfico"
                 description="Personaliza tu gráfico de área">
-<!--        <UButton-->
-<!--            color="neutral"-->
-<!--            variant="ghost"-->
-<!--            icon="i-heroicons-x-mark-20-solid"-->
-<!--            @click="cerrar"-->
-<!--        />-->
-
         <template #body>
             <div class="space-y-6 p-4">
                 <!-- Configuración General -->
@@ -164,7 +157,7 @@
 
                                     <!-- Valores para cada serie -->
                                     <div class="grid grid-cols-2 gap-3">
-                                        <UFormField 
+                                        <UFormField
                                             v-for="serie in formData.series"
                                             :key="serie.key"
                                             :label="serie.name"
@@ -221,10 +214,7 @@
                 </div>
             </div>
         </template>
-        <!-- Contenido del formulario -->
 
-
-        <!-- Footer con acciones -->
         <template #footer>
             <div class="flex items-center justify-between gap-3">
                 <UButton
@@ -253,18 +243,17 @@
                 </div>
             </div>
         </template>
-
     </USlideover>
 </template>
 
 <script setup lang="ts">
 import {computed, type ComputedRef, ref, watch} from 'vue'
-const color = ref('#00C16A')
+import { useDataStore } from '~/composables/useDataStore'
 
+const color = ref('#00C16A')
 
 interface GraficoDataPoint {
     date: string
-
     [key: string]: string | number
 }
 
@@ -285,6 +274,7 @@ interface GraficoData {
 interface Props {
     modelValue: boolean
     data: GraficoData
+    panelId?: string
 }
 
 const props = defineProps<Props>()
@@ -294,12 +284,13 @@ const emit = defineEmits<{
     'save': [data: GraficoData]
 }>()
 
+const { agregarConjuntoDatos, actualizarConjuntoDatos, conjuntosDatos } = useDataStore()
+
 const isOpen = computed({
     get: () => props.modelValue,
     set: (value) => emit('update:modelValue', value)
 })
 
-// Datos del formulario
 const formData = ref<GraficoData>({
     titulo: '',
     datos: [],
@@ -308,7 +299,6 @@ const formData = ref<GraficoData>({
     legendPosition: 'top'
 })
 
-// Opciones de configuración
 const curveTypeOptions = [
     {label: 'Monotone X', value: 'monotoneX'},
     {label: 'Linear', value: 'linear'},
@@ -323,7 +313,6 @@ const legendPositionOptions = [
     {label: 'Izquierda', value: 'left'}
 ]
 
-// Cargar datos cuando se abre
 watch(() => props.modelValue, (newValue) => {
     if (newValue) {
         cargarDatos()
@@ -340,7 +329,6 @@ const cargarDatos = () => {
     }
 }
 
-// Gestión de series
 const agregarSerie = () => {
     const colores = ['#3b82f6', '#22c55e', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899']
     const color = colores[formData.value.series.length % colores.length]
@@ -356,19 +344,16 @@ const eliminarSerie = (index: number) => {
     const serieKey = formData.value.series[index].key
     formData.value.series.splice(index, 1)
 
-    // Eliminar valores de esta serie en todos los datos
     formData.value.datos.forEach(dato => {
         delete dato[serieKey]
     })
 }
 
-// Gestión de datos
 const agregarDato = () => {
     const nuevoDato: GraficoDataPoint = {
         date: new Date().toISOString().split('T')[0]
     }
 
-    // Agregar campos para cada serie con valor 0
     formData.value.series.forEach(serie => {
         nuevoDato[serie.key] = 0
     })
@@ -380,7 +365,6 @@ const eliminarDato = (index: number) => {
     formData.value.datos.splice(index, 1)
 }
 
-// Vista previa
 const previewCategories: ComputedRef<Record<string, BulletLegendItemInterface>> = computed(() => {
     const cats: Record<string, BulletLegendItemInterface> = {}
 
@@ -402,16 +386,39 @@ const getLegendPosition = (position: string) => {
     return LegendPosition[position as keyof typeof LegendPosition] || LegendPosition.Top
 }
 
-// Validación
 const puedeGuardar = computed(() => {
     return formData.value.series.length > 0 && formData.value.datos.length > 0
 })
 
-// Acciones
 const guardar = () => {
     if (!puedeGuardar.value) return
 
-    emit('save', JSON.parse(JSON.stringify(formData.value)))
+    const datosGrafico = JSON.parse(JSON.stringify(formData.value))
+
+    // Guardar en el Data Store
+    if (props.panelId) {
+        const conjuntoExistente = conjuntosDatos.value.find(c => c.panelOrigenId === props.panelId)
+
+        if (conjuntoExistente) {
+            actualizarConjuntoDatos(conjuntoExistente.id, datosGrafico, {
+                descripcion: `Gráfico: ${formData.value.titulo}`,
+                etiquetas: ['grafico', formData.value.curveType]
+            })
+        } else {
+            agregarConjuntoDatos(
+                formData.value.titulo || 'Gráfico sin título',
+                'grafico',
+                datosGrafico,
+                {
+                    descripcion: `Gráfico: ${formData.value.titulo}`,
+                    etiquetas: ['grafico', formData.value.curveType]
+                },
+                props.panelId
+            )
+        }
+    }
+
+    emit('save', datosGrafico)
     cerrar()
 }
 
@@ -429,7 +436,6 @@ const resetear = () => {
     }
 }
 
-// Cargar datos iniciales si se abre
 if (props.modelValue) {
     cargarDatos()
 }

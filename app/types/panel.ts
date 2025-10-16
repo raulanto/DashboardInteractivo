@@ -126,10 +126,16 @@ export interface PanelConfig {
     tamaño?: PanelSize
 }
 
-// Tipos específicos para cada tipo de panel
 export interface EstadisticaData {
     valor: string | number
     subtitulo: string
+    icono?: string
+    color?: string
+    formato?: 'number' | 'currency' | 'percent' | 'compact'
+    // Datos para vinculación con Data Store
+    conjuntoDatosId?: string
+    campoNumerico?: string
+    tipoEstadistica?: 'suma' | 'promedio' | 'maximo' | 'minimo' | 'conteo' | 'mediana' | 'desviacionEstandar'
 }
 
 export interface GraficoDataPoint {
@@ -186,3 +192,27 @@ export type PanelData =
     | CalendarioData
     | MapaData
     | NotasData
+
+// ============================================
+// PANEL PRINCIPAL
+// ============================================
+export interface Panel {
+    id: string
+    tipo: PanelType
+    x: number
+    y: number
+    ancho: number
+    alto: number
+    data: PanelData
+    zIndex?: number
+}
+// ============================================
+// HELPERS DE TIPO
+// ============================================
+export function isEstadisticaData(data: PanelData): data is EstadisticaData {
+    return 'valor' in data && 'subtitulo' in data
+}
+
+export function isGraficoData(data: PanelData): data is GraficoData {
+    return 'datos' in data && 'series' in data
+}
