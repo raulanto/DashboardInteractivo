@@ -1,9 +1,13 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
+:root {
+    --ui-radius: 0.50rem;
+}
+
+@theme {
+    --font-sans: 'Public Sans', sans-serif;
+}
 
 .dark {
     --ui-text-dimmed: var(--ui-color-neutral-500);

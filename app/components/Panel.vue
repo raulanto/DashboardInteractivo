@@ -1,104 +1,26 @@
 <template>
     <div
         :style="panelStyle"
-        class="panel-flotante absolute"
+        class="panel-flotante absolute   "
         :class="[
-      panel.arrastrando ? 'cursor-grabbing' : '',
-      panel.redimensionando ? 'select-none' : ''
-    ]"
+            panel.arrastrando ? 'cursor-grabbing' : '',
+            panel.redimensionando ? 'select-none' : ''
+            ]"
     >
         <UCard :ui="{
-                root: 'rounded-lg overflow-hidden',
+                root: 'rounded-lg overflow-hidden hover:shadow-lg transition-shadow h-full relative',
                 header: 'p-2 sm:px-3',
                 body: 'p-0 sm:p-0',
         }"
+               @mousedown="handleDragStart"
+               @mouseenter="mostrarControles = true"
+               @mouseleave="mostrarControles = false"
         >
 
-            <template             v-if="dragEnabled" #header>
-                <div
-
-                    class="flex justify-between items-start select-none transition-opacity"
-                    :class="[
-            dragEnabled ? 'cursor-grab active:cursor-grabbing' : 'cursor-default opacity-60',
-          ]"
-                    @mousedown="handleDragStart"
-                >
-                    <div class="flex-1 pointer-events-none">
-                        <h3 class="text-base font-semibold text-gray-900 dark:text-white">
-                            {{ panel.titulo }}
-                        </h3>
-                        <div class="flex items-center gap-2 mt-1 flex-wrap">
-                            <UBadge
-                                :label="obtenerEtiquetaTipo(panel.tipo)"
-                                size="xs"
-                                color="primary"
-                                variant="subtle"
-                            />
-
-                            <!-- Indicador de drag deshabilitado -->
-                            <UBadge
-                                v-if="!dragEnabled"
-                                label="Drag OFF"
-                                size="xs"
-                                color="neutral"
-                                variant="subtle"
-                            />
-
-                            <!-- Indicador de tamaño actual -->
-                            <UBadge
-                                v-if="panel.redimensionando"
-                                :label="`${Math.round(panel.tamaño.width)}×${Math.round(panel.tamaño.height)}`"
-                                size="xs"
-                                color="primary"
-                                variant="soft"
-                                class="font-mono"
-                            />
-
-                            <!-- Indicador de límite alcanzado -->
-                            <UBadge
-                                v-if="panel.redimensionando && (limites.enMinWidth || limites.enMinHeight)"
-                                label="Mínimo"
-                                size="xs"
-                                color="warning"
-                                variant="soft"
-                            />
-
-                            <UBadge
-                                v-if="panel.redimensionando && (limites.enMaxWidth || limites.enMaxHeight)"
-                                label="Máximo"
-                                size="xs"
-                                color="error"
-                                variant="soft"
-                            />
-                        </div>
-                    </div>
-
-                    <div class="flex gap-1 pointer-events-auto">
-                        <UTooltip text="Duplicar panel">
-                            <UButton
-                                icon="i-heroicons-document-duplicate"
-                                size="xs"
-                                color="neutral"
-                                variant="ghost"
-                                @click.stop="$emit('duplicate')"
-                            />
-                        </UTooltip>
-                        <UTooltip text="Eliminar panel">
-                            <UButton
-                                icon="i-heroicons-trash"
-                                size="xs"
-                                color="error"
-                                variant="ghost"
-                                @click.stop="$emit('delete')"
-                            />
-                        </UTooltip>
-                    </div>
-                </div>
-            </template>
 
             <div
                 class="p-4 overflow-auto"
-                :style="{ height: `calc(${panel.tamaño.height}px - 80px)` }"
+                :style="{ height: `calc(${panel.tamaño.height}px)` }"
             >
                 <!-- Renderizado dinámico de componentes -->
                 <component
@@ -108,35 +30,57 @@
                     @open-config="$emit('open-config')"
                 />
             </div>
+            <!-- Handle para redimensionar -->
+            <div
+                v-if="dragEnabled"
+                class="resize-handle absolute bottom-1 right-1 w-6 h-6 cursor-nwse-resize transition-all rounded-sm flex items-center justify-center shadow-sm"
+                :class="[panel.redimensionando ? 'opacity-100 scale-110' : 'opacity-50 hover:opacity-100',
+                limites.enMaxWidth && limites.enMaxHeight ? 'bg-red-500/40 ring-2 ring-red-500' : limites.enMinWidth && limites.enMinHeight
+                ? 'bg-yellow-500/40 ring-2 ring-yellow-500' : 'bg-primary/30 hover:bg-primary/50']"
+                @mousedown.stop="$emit('resize-start', $event)"
+            >
+                <UIcon
+                    name="i-heroicons-arrows-pointing-out"
+                    class="w-3.5 h-3.5"
+                    :class="[limites.enMaxWidth && limites.enMaxHeight ? 'text-red-600 dark:text-red-400'
+                    : limites.enMinWidth && limites.enMinHeight
+                    ? 'text-yellow-600 dark:text-yellow-400'
+                    : 'text-primary'
+                    ]"
+                />
+            </div>
         </UCard>
 
-        <!-- Handle para redimensionar -->
-        <div
-            v-if="dragEnabled"
-            class="resize-handle absolute bottom-1 right-1 w-6 h-6 cursor-nwse-resize transition-all rounded-sm flex items-center justify-center shadow-sm"
-            :class="[
-        panel.redimensionando ? 'opacity-100 scale-110' : 'opacity-50 hover:opacity-100',
-        limites.enMaxWidth && limites.enMaxHeight
-          ? 'bg-red-500/40 ring-2 ring-red-500'
-          : limites.enMinWidth && limites.enMinHeight
-            ? 'bg-yellow-500/40 ring-2 ring-yellow-500'
-            : 'bg-primary/30 hover:bg-primary/50'
-      ]"
-            @mousedown.stop="$emit('resize-start', $event)"
-        >
-            <UIcon
-                name="i-heroicons-arrows-pointing-out"
-                class="w-3.5 h-3.5"
-                :class="[
-          limites.enMaxWidth && limites.enMaxHeight
-            ? 'text-red-600 dark:text-red-400'
-            : limites.enMinWidth && limites.enMinHeight
-              ? 'text-yellow-600 dark:text-yellow-400'
-              : 'text-primary'
-        ]"
-            />
-        </div>
 
+        <transition name="slide-fade">
+            <UFieldGroup
+                orientation="vertical"
+                @mouseenter="mostrarControles = true"
+                @mouseleave="mostrarControles = false"
+                v-if="mostrarControles && dragEnabled"
+                class="controles-panel absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full mr-4 z-50"
+            >
+
+                    <UTooltip text="Configurar" placement="left">
+                        <UButton @click.stop="$emit('open-config')" color="neutral" variant="outline">
+                            <UIcon name="i-heroicons-cog-6-tooth" />
+                        </UButton>
+                    </UTooltip>
+
+                    <UTooltip text="Duplicar" placement="left">
+                        <UButton @click.stop="$emit('duplicate')" color="neutral" variant="outline">
+                            <UIcon name="i-heroicons-document-duplicate"/>
+                        </UButton>
+                    </UTooltip>
+
+                    <UTooltip text="Eliminar" placement="left">
+                        <UButton @click.stop="$emit('delete')" color="error" variant="outline">
+                            <UIcon name="i-heroicons-trash"/>
+                        </UButton>
+                    </UTooltip>
+
+            </UFieldGroup>
+        </transition>
         <!-- Indicadores de límite en los bordes -->
         <div
             v-if="panel.redimensionando"
@@ -191,21 +135,7 @@
             </div>
         </div>
 
-        <!-- Indicador de información de límites (tooltip) -->
-        <div
-            v-if="panel.activo && !panel.redimensionando"
-            class="absolute bottom-8 right-1 pointer-events-none"
-        >
-            <div class="px-2 py-1 bg-gray-900/90 text-white text-xs rounded shadow-lg">
-                <div class="font-medium mb-0.5">Límites</div>
-                <div class="text-gray-300">
-                    W: {{ obtenerPreset().minWidth }}-{{ obtenerPreset().maxWidth || '∞' }}px
-                </div>
-                <div class="text-gray-300">
-                    H: {{ obtenerPreset().minHeight }}-{{ obtenerPreset().maxHeight || '∞' }}px
-                </div>
-            </div>
-        </div>
+
     </div>
 </template>
 
@@ -229,6 +159,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
     dragEnabled: true
 })
+const mostrarControles = ref(false)
 
 const emit = defineEmits<{
     'drag-start': [event: MouseEvent]
@@ -254,9 +185,9 @@ const componentesMap: Record<string, any> = {
 const ComponenteDefault = {
     template: `
         <div class="h-full flex flex-col items-center justify-center text-center">
-            <UIcon name="i-heroicons-document-chart-bar" class="w-16 h-16 text-gray-400 dark:text-gray-600 mb-4" />
-            <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Panel de información</h4>
-            <UBadge :label="'Tipo: ' + tipo" size="sm" color="gray" variant="subtle" />
+            <UIcon name="i-heroicons-document-chart-bar" class="w-16 h-16 text-neutral-400 dark:text-neutral-600 mb-4" />
+            <h4 class="text-lg font-semibold text-neutral-900 dark:text-white mb-2">Panel de información</h4>
+            <UBadge :label="'Tipo: ' + tipo" size="sm" color="neutral" variant="subtle" />
         </div>
     `,
     props: ['data', 'tipo']

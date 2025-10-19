@@ -68,8 +68,8 @@ export const PANEL_SIZE_PRESETS: Record<PanelType, PanelSizePreset> = {
         maxHeight: 400
     },
     grafico: {
-        width: 400,
-        height: 300,
+        width: 900,
+        height: 400,
         minWidth: 300,
         minHeight: 250,
         maxWidth: 900,

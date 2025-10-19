@@ -332,9 +332,17 @@ watch(() => props.modelValue, (newValue) => {
 
 const cargarDatos = () => {
     formData.value = {
-        titulo: props.data.titulo || '',
-        datos: JSON.parse(JSON.stringify(props.data.datos || [])),
-        series: JSON.parse(JSON.stringify(props.data.series || [])),
+        titulo: props.data.titulo || 'Grafico de Área',
+        datos: JSON.parse(JSON.stringify(props.data.datos || [
+            { date: '2024-04-01', Datos: 222},
+            { date: '2024-04-02', Datos: 180},
+            { date: '2024-04-03', Datos: 167 },
+            { date: '2024-04-04', Datos: 260 },
+            { date: '2024-04-05', Datos: 240 },
+        ])),
+        series: JSON.parse(JSON.stringify(props.data.series || [
+            
+        ])),
         curveType: props.data.curveType || 'monotoneX',
         legendPosition: props.data.legendPosition || 'top'
     }
