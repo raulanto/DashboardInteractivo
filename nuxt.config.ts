@@ -2,9 +2,18 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
-  modules: ['@nuxt/ui',"nuxt-charts"],
-  css: ['~/assets/css/main.css'],
+  modules: [
+    '@nuxt/ui',
+    "nuxt-charts",
+    '@vueuse/nuxt',
 
+  ],
+  css: ['~/assets/css/main.css'],
+  routeRules: {
+    '/api/**': {
+      cors: true
+    }
+  },
   colorMode: {
     preference: 'light',
   },

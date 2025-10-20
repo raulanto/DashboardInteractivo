@@ -1,7 +1,10 @@
 <template>
     <UApp>
-        <UBanner title="Proyecto en Construccion" />
-        <NuxtPage />
+        <NuxtLoadingIndicator />
+
+        <NuxtLayout>
+            <NuxtPage />
+        </NuxtLayout>
     </UApp>
     <Analytics/>
 </template>

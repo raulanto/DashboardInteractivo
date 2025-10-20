@@ -415,11 +415,11 @@ const autoOrganizarPanelesMansory = () => {
 // Lifecycle
 onMounted(() => {
   if (totalPaneles.value === 0 && contenedorRef.value) {
-    const rect = contenedorRef.value.getBoundingClientRect();
-    agregarPanel("estadistica", rect.width, rect.height, 0, 0);
-    agregarPanel("grafico", rect.width, rect.height, 0, 0);
-    agregarPanel("lista", rect.width, rect.height, 0, 0);
-    autoOrganizarMasonry();
+      // const rect = contenedorRef.value.getBoundingClientRect();
+      // agregarPanel("estadistica", rect.width, rect.height, 0, 0);
+      // agregarPanel("grafico", rect.width, rect.height, 0, 0);
+      // agregarPanel("lista", rect.width, rect.height, 0, 0);
+      // autoOrganizarMasonry();
   }
 
   document.addEventListener("mousedown", (e) => {
