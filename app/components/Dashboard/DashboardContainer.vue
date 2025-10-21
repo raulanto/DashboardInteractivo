@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col min-h-screen">
+  <div class="flex flex-col h-full ">
     <div class="flex flex-col flex-1 max-w-screen mx-auto w-full">
       <!-- Contenedor del Canvas -->
       <div
@@ -77,7 +77,7 @@
         </div>
                
         <div
-          class="p-2 -mt-2 absolute top-4 left-1/2 transform -translate-x-1/2 pointer-events-auto z-10 bg-neutral-100/80 dark:bg-neutral-950 rounded-md shadow-md"
+          class="p-2 w-fit -mt-2 absolute top-4 left-1/2 transform -translate-x-1/2 pointer-events-auto z-10 bg-neutral-100/80 dark:bg-neutral-950 rounded-md shadow-md"
         >
 
 

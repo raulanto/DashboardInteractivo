@@ -198,7 +198,6 @@
       </template>
     </UPopover>
 
-    <UColorModeButton />
   </div>
 
   <!-- Modal de confirmación mejorado -->

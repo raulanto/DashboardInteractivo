@@ -21,7 +21,7 @@ definePageMeta({
 </script>
 
 <template>
-    <UDashboardPanel id="home">
+    <UDashboardPanel id="home" :ui="{ body: 'gap-0 sm:p-0 p-0' }">
         <template #header>
             <UDashboardNavbar title="Home" :ui="{ right: 'gap-3' }">
                 <template #leading>
@@ -36,17 +36,10 @@ definePageMeta({
                     </UDropdownMenu>
                 </template>
             </UDashboardNavbar>
-
-            <UDashboardToolbar>
-                <template #left>
-                    Desarrolla y crea pnales de control impresionantes y personalizados de forma rápida y sencilla
-                </template>
-            </UDashboardToolbar>
         </template>
 
         <template #body>
-        <new-board/>
-
+            <DashboardContainer/>
         </template>
     </UDashboardPanel>
 </template>

@@ -6,7 +6,7 @@ export default defineNuxtConfig({
     '@nuxt/ui',
     "nuxt-charts",
     '@vueuse/nuxt',
-
+    '@nuxtjs/leaflet',
   ],
   css: ['~/assets/css/main.css'],
   routeRules: {
