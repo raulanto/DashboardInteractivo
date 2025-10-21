@@ -9,7 +9,7 @@ const open = ref(false);
 const links = [
     [
         {
-            label: "Home",
+            label: "Inicio",
             icon: "i-lucide-house",
             to: "/board",
             onSelect: () => {
@@ -26,17 +26,15 @@ const groups = computed(() => [
         items: links.flat(),
     },
     {
-        id: "code",
-        label: "Code",
+        id: "boardcreate",
+        label: "New Board",
         items: [
             {
                 id: "source",
-                label: "View page source",
-                icon: "i-simple-icons-github",
-                to: `https://github.com/nuxt-ui-templates/dashboard/blob/main/app/pages${
-                    route.path === "/" ? "/index" : route.path
-                }.vue`,
-                target: "_blank",
+                label: "Crear un Nuevo Panel",
+                icon: "i-lucide-circle-plus",
+                to: '/board/CreateBoard',
+
             },
         ],
     },
@@ -83,7 +81,7 @@ onMounted(async () => {
             :ui="{ footer: 'lg:border-t lg:border-default' }"
         >
             <template #header="{ collapsed }">
-                <TeamsMenu :collapsed="collapsed" />
+
             </template>
 
             <template #default="{ collapsed }">
