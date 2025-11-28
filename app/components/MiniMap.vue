@@ -1,67 +1,85 @@
 <template>
     <div
         v-if="visible"
-        class="fixed bottom-4 right-4 bg-white dark:bg-neutral-900 rounded-lg shadow-lg border border-neutral-200 dark:border-neutral-800 overflow-hidden z-50"
+        class="fixed bottom-4 right-4 bg-white dark:bg-neutral-900 rounded-lg shadow-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden z-50 flex flex-col transition-all duration-300 ease-in-out"
         :style="{ width: `${width}px`, height: `${height}px` }"
     >
-        <!-- Header del minimapa -->
-        <div class="flex items-center justify-between px-3 py-2 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800">
+        <!-- Header del minimapa con controles -->
+        <div class="flex items-center justify-between px-2 py-1.5 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800 select-none">
             <div class="flex items-center gap-2">
-                <UIcon name="i-heroicons-map" class="w-4 h-4 text-primary" />
-                <span class="text-xs font-semibold text-neutral-700 dark:text-neutral-300">Mapa</span>
+                <UIcon name="i-heroicons-map" class="w-3.5 h-3.5 text-primary" />
+                <span class="text-[10px] font-semibold text-neutral-600 dark:text-neutral-400 uppercase tracking-wider">Navegación</span>
             </div>
-            <div class="flex gap-1">
-                <UButton
-                    icon="i-heroicons-minus"
-                    size="xs"
-                    color="neutral"
-                    variant="ghost"
-                    @click="$emit('toggle')"
-                />
+            <div class="flex items-center gap-1">
+                <UTooltip text="Centrar Vista">
+                    <UButton
+                        icon="i-heroicons-arrows-pointing-in"
+                        color="neutral"
+                        variant="ghost"
+                        @click="$emit('fit-view')"
+                    />
+                </UTooltip>
+                <UTooltip text="Ocultar">
+                    <UButton
+                        icon="i-heroicons-chevron-down"
+                        color="neutral"
+                        variant="ghost"
+                        @click="$emit('toggle')"
+                    />
+                </UTooltip>
             </div>
         </div>
 
         <!-- Canvas del minimapa -->
         <div
             ref="miniMapRef"
-            class="relative cursor-pointer bg-neutral-50 dark:bg-neutral-900"
-            :style="{ height: `${height - 40}px` }"
+            class="relative flex-1 bg-neutral-100/50 dark:bg-neutral-900/50 cursor-crosshair overflow-hidden"
             @click="handleMapClick"
             @mousedown="handleMapMouseDown"
             @mousemove="handleMapMouseMove"
             @mouseup="handleMapMouseUp"
             @mouseleave="handleMapMouseUp"
+            @wheel.prevent.stop="handleWheel"
         >
-            <!-- Paneles en el minimapa -->
-            <div
-                v-for="panel in paneles"
-                :key="panel.id"
-                class="absolute rounded transition-colors"
-                :class="[
-          panel.activo
-            ? 'bg-primary/70 border-2 border-primary'
-            : 'bg-neutral-400 dark:bg-neutral-600 border border-neutral-500 dark:border-neutral-700'
-        ]"
-                :style="getPanelStyle(panel)"
-            />
+            <!-- Contenedor interno escalado para centrar contenido -->
+            <div class="absolute inset-0 w-full h-full pointer-events-none">
 
-            <!-- Viewport actual (área visible) -->
-            <div
-                class="absolute border-2 border-primary-500 bg-primary-500/10 cursor-move"
-                :style="getViewportStyle()"
-            />
+                <!-- Grid de referencia (Fondo) -->
+                <div class="absolute inset-0 opacity-10" :style="gridStyle" />
 
-            <!-- Grid de referencia -->
-            <div
-                class="absolute inset-0 pointer-events-none opacity-20"
-                :style="gridStyle"
-            />
+                <!-- Paneles (Representación simplificada) -->
+                <div
+                    v-for="panel in paneles"
+                    :key="panel.id"
+                    class="absolute rounded-sm transition-all duration-75 border"
+                    :class="[
+                        panel.activo
+                            ? 'bg-primary-500/80 border-primary-600 z-10 shadow-sm'
+                            : 'bg-neutral-400/60 dark:bg-neutral-600/60 border-neutral-500/50 dark:border-neutral-500/50 hover:bg-neutral-500/80'
+                    ]"
+                    :style="getPanelStyle(panel)"
+                />
+
+                <!-- Viewport (Área visible actual) -->
+                <div
+                    class="absolute border-2 border-primary-500 bg-primary-500/10 cursor-move transition-transform duration-75 z-20 shadow-[0_0_0_9999px_rgba(0,0,0,0.2)]"
+                    :style="viewportStyle"
+                >
+                    <!-- Indicador de centro del viewport -->
+                    <div class="absolute top-1/2 left-1/2 w-1 h-1 bg-primary-500 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-50"></div>
+                </div>
+            </div>
+
+            <!-- Indicador de escala (Zoom level) -->
+            <div class="absolute bottom-1 right-1 px-1.5 py-0.5 bg-black/60 text-white text-[9px] rounded font-mono pointer-events-none">
+                {{ Math.round(scale * 100) }}%
+            </div>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import type { Panel } from '~/types/panel'
 
 interface Props {
@@ -78,184 +96,237 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
     visible: true,
-    width: 200,
-    height: 160
+    width: 240,
+    height: 180
 })
 
 const emit = defineEmits<{
     'navigate': [x: number, y: number]
     'toggle': []
+    'fit-view': [] // Nuevo evento para centrar todo
 }>()
 
 const miniMapRef = ref<HTMLElement | null>(null)
 const isDraggingViewport = ref(false)
+const internalZoom = ref(1) // Zoom interno del minimapa (opcional)
 
-// Calcular los límites del canvas con todos los paneles
-const canvasBounds = computed(() => {
+// --- LÍMITES Y ESCALA ---
+
+// Calcular los límites totales del contenido (Bounding Box de todos los paneles)
+const contentBounds = computed(() => {
+    // Márgenes mínimos base (padding virtual alrededor de los paneles)
+    const padding = 2000;
+
     if (props.paneles.length === 0) {
         return {
-            minX: -500,
-            minY: -500,
-            maxX: 1500,
-            maxY: 1500
+            minX: -padding,
+            minY: -padding,
+            maxX: padding * 2,
+            maxY: padding * 2,
+            width: padding * 3,
+            height: padding * 3
         }
     }
 
-    const minX = Math.min(...props.paneles.map(p => p.posicion.x), 0) - 100
-    const minY = Math.min(...props.paneles.map(p => p.posicion.y), 0) - 100
-    const maxX = Math.max(...props.paneles.map(p => p.posicion.x + p.tamaño.width), props.containerWidth) + 100
-    const maxY = Math.max(...props.paneles.map(p => p.posicion.y + p.tamaño.height), props.containerHeight) + 100
+    let minX = Infinity
+    let minY = Infinity
+    let maxX = -Infinity
+    let maxY = -Infinity
 
-    return { minX, minY, maxX, maxY }
+    props.paneles.forEach(p => {
+        if (p.posicion.x < minX) minX = p.posicion.x
+        if (p.posicion.y < minY) minY = p.posicion.y
+        if (p.posicion.x + p.tamaño.width > maxX) maxX = p.posicion.x + p.tamaño.width
+        if (p.posicion.y + p.tamaño.height > maxY) maxY = p.posicion.y + p.tamaño.height
+    })
+
+    // Añadir padding dinámico para que los paneles no toquen los bordes del minimapa
+    minX -= padding
+    minY -= padding
+    maxX += padding
+    maxY += padding
+
+    // Asegurar un tamaño mínimo para evitar divisiones por cero o zoom infinito
+    const width = Math.max(maxX - minX, 1000)
+    const height = Math.max(maxY - minY, 1000)
+
+    return { minX, minY, maxX, maxY, width, height }
 })
 
-// Escala del minimapa
+// Factor de escala: Relación entre tamaño real (minimapa px) y tamaño virtual (contenido)
 const scale = computed(() => {
-    const bounds = canvasBounds.value
-    const canvasWidth = bounds.maxX - bounds.minX
-    const canvasHeight = bounds.maxY - bounds.minY
+    // Restamos la altura del header (aprox 32px) para el área útil
+    const mapHeight = props.height - 32
 
-    const scaleX = (props.width - 20) / canvasWidth
-    const scaleY = (props.height - 60) / canvasHeight
+    const scaleX = props.width / contentBounds.value.width
+    const scaleY = mapHeight / contentBounds.value.height
 
-    return Math.min(scaleX, scaleY)
+    // Usamos el menor para que todo quepa ("contain")
+    return Math.min(scaleX, scaleY) * internalZoom.value
 })
 
-// Offset del minimapa
+// Offset para centrar el contenido en el minimapa
 const offset = computed(() => {
-    const bounds = canvasBounds.value
+    const mapHeight = props.height - 32
+
+    // Dimensiones escaladas del contenido
+    const scaledContentWidth = contentBounds.value.width * scale.value
+    const scaledContentHeight = contentBounds.value.height * scale.value
+
+    // Centrar
+    const offsetX = (props.width - scaledContentWidth) / 2
+    const offsetY = (mapHeight - scaledContentHeight) / 2
+
+    return { x: offsetX, y: offsetY }
+})
+
+// --- FUNCIONES DE CONVERSIÓN DE COORDENADAS ---
+
+// De Coordenadas del Mundo (Canvas real) -> Coordenadas Minimapa (px)
+const worldToMap = (worldX: number, worldY: number) => {
+    // Relativo al origen del bounding box
+    const relX = worldX - contentBounds.value.minX
+    const relY = worldY - contentBounds.value.minY
+
     return {
-        x: -bounds.minX * scale.value + 10,
-        y: -bounds.minY * scale.value + 10
+        x: relX * scale.value + offset.value.x,
+        y: relY * scale.value + offset.value.y
+    }
+}
+
+// De Coordenadas Minimapa (px) -> Coordenadas del Mundo (Canvas real)
+const mapToWorld = (mapX: number, mapY: number) => {
+    const relX = (mapX - offset.value.x) / scale.value
+    const relY = (mapY - offset.value.y) / scale.value
+
+    return {
+        x: relX + contentBounds.value.minX,
+        y: relY + contentBounds.value.minY
+    }
+}
+
+// --- ESTILOS VISUALES ---
+
+const getPanelStyle = (panel: Panel) => {
+    const pos = worldToMap(panel.posicion.x, panel.posicion.y)
+
+    return {
+        left: `${pos.x}px`,
+        top: `${pos.y}px`,
+        width: `${Math.max(panel.tamaño.width * scale.value, 2)}px`,
+        height: `${Math.max(panel.tamaño.height * scale.value, 2)}px`
+    }
+}
+
+const viewportStyle = computed(() => {
+    // El viewport visible en el canvas es el inverso de la transformación
+    // Viewport en coordenadas del mundo:
+    const visibleWorldX = -props.canvasX / props.canvasScale
+    const visibleWorldY = -props.canvasY / props.canvasScale
+    const visibleWorldW = props.containerWidth / props.canvasScale
+    const visibleWorldH = props.containerHeight / props.canvasScale
+
+    const pos = worldToMap(visibleWorldX, visibleWorldY)
+
+    return {
+        left: `${pos.x}px`,
+        top: `${pos.y}px`,
+        width: `${visibleWorldW * scale.value}px`,
+        height: `${visibleWorldH * scale.value}px`
     }
 })
 
-// Convertir coordenadas de canvas a minimapa
-const toMiniMapCoords = (x: number, y: number, width: number = 0, height: number = 0) => {
-    return {
-        x: x * scale.value + offset.value.x,
-        y: y * scale.value + offset.value.y,
-        width: width * scale.value,
-        height: height * scale.value
-    }
-}
-
-// Convertir coordenadas de minimapa a canvas
-const fromMiniMapCoords = (miniX: number, miniY: number) => {
-    return {
-        x: (miniX - offset.value.x) / scale.value,
-        y: (miniY - offset.value.y) / scale.value
-    }
-}
-
-// Estilo de cada panel en el minimapa
-const getPanelStyle = (panel: Panel) => {
-    const coords = toMiniMapCoords(
-        panel.posicion.x,
-        panel.posicion.y,
-        panel.tamaño.width,
-        panel.tamaño.height
-    )
-
-    return {
-        left: `${coords.x}px`,
-        top: `${coords.y}px`,
-        width: `${Math.max(coords.width, 4)}px`,
-        height: `${Math.max(coords.height, 3)}px`
-    }
-}
-
-// Estilo del viewport actual
-const getViewportStyle = () => {
-    const viewportWidth = props.containerWidth / props.canvasScale
-    const viewportHeight = props.containerHeight / props.canvasScale
-    const viewportX = -props.canvasX / props.canvasScale
-    const viewportY = -props.canvasY / props.canvasScale
-
-    const coords = toMiniMapCoords(viewportX, viewportY, viewportWidth, viewportHeight)
-
-    return {
-        left: `${coords.x}px`,
-        top: `${coords.y}px`,
-        width: `${coords.width}px`,
-        height: `${coords.height}px`
-    }
-}
-
-// Grid de referencia
 const gridStyle = computed(() => {
-    const gridSize = 50 * scale.value
-
+    const gridSize = 100 * scale.value // Grid virtual de 100px
     return {
         backgroundImage: `
-      linear-gradient(to right, rgba(156, 163, 175, 0.3) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(156, 163, 175, 0.3) 1px, transparent 1px)
-    `,
+            linear-gradient(to right, currentColor 1px, transparent 1px),
+            linear-gradient(to bottom, currentColor 1px, transparent 1px)
+        `,
         backgroundSize: `${gridSize}px ${gridSize}px`,
-        backgroundPosition: `${offset.value.x}px ${offset.value.y}px`
+        // Alinear el grid con el origen del mundo
+        backgroundPosition: `${offset.value.x - (contentBounds.value.minX * scale.value) % gridSize}px ${offset.value.y - (contentBounds.value.minY * scale.value) % gridSize}px`
     }
 })
 
-// Click en el minimapa para navegar
+// --- INTERACCIÓN ---
+
 const handleMapClick = (event: MouseEvent) => {
     if (isDraggingViewport.value) return
-
-    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
-    const miniX = event.clientX - rect.left
-    const miniY = event.clientY - rect.top
-
-    const canvasCoords = fromMiniMapCoords(miniX, miniY)
-
-    // Centrar el viewport en el punto clickeado
-    const newX = -(canvasCoords.x * props.canvasScale - props.containerWidth / 2)
-    const newY = -(canvasCoords.y * props.canvasScale - props.containerHeight / 2)
-
-    emit('navigate', newX, newY)
+    navigate(event)
 }
 
-// Arrastrar el viewport en el minimapa
 const handleMapMouseDown = (event: MouseEvent) => {
     if (!miniMapRef.value) return
 
+    // Detectar si clicamos dentro del viewport actual para arrastrarlo
     const rect = miniMapRef.value.getBoundingClientRect()
-    const miniX = event.clientX - rect.left
-    const miniY = event.clientY - rect.top
+    const clickX = event.clientX - rect.left
+    const clickY = event.clientY - rect.top
 
-    const viewportStyle = getViewportStyle()
-    const vpLeft = parseFloat(viewportStyle.left)
-    const vpTop = parseFloat(viewportStyle.top)
-    const vpWidth = parseFloat(viewportStyle.width)
-    const vpHeight = parseFloat(viewportStyle.height)
+    // Parsear estilo actual (calculado en computed)
+    const vp = viewportStyle.value
+    const vpX = parseFloat(vp.left)
+    const vpY = parseFloat(vp.top)
+    const vpW = parseFloat(vp.width)
+    const vpH = parseFloat(vp.height)
 
-    // Verificar si el click está dentro del viewport
-    if (
-        miniX >= vpLeft &&
-        miniX <= vpLeft + vpWidth &&
-        miniY >= vpTop &&
-        miniY <= vpTop + vpHeight
-    ) {
+    if (clickX >= vpX && clickX <= vpX + vpW && clickY >= vpY && clickY <= vpH + vpY) {
         isDraggingViewport.value = true
-        event.preventDefault()
+        event.preventDefault() // Evitar selección de texto
+    } else {
+        // Si clicamos fuera, navegamos directamente
+        navigate(event)
+        isDraggingViewport.value = true // Y empezamos a arrastrar desde ahí
     }
 }
 
 const handleMapMouseMove = (event: MouseEvent) => {
-    if (!isDraggingViewport.value || !miniMapRef.value) return
-
-    const rect = miniMapRef.value.getBoundingClientRect()
-    const miniX = event.clientX - rect.left
-    const miniY = event.clientY - rect.top
-
-    const canvasCoords = fromMiniMapCoords(miniX, miniY)
-
-    // Centrar el viewport en la posición del cursor
-    const newX = -(canvasCoords.x * props.canvasScale - props.containerWidth / 2)
-    const newY = -(canvasCoords.y * props.canvasScale - props.containerHeight / 2)
-
-    emit('navigate', newX, newY)
+    if (!isDraggingViewport.value) return
+    navigate(event)
 }
 
 const handleMapMouseUp = () => {
     isDraggingViewport.value = false
 }
+
+const handleWheel = (event: WheelEvent) => {
+    // Zoom simple en el minimapa (opcional, solo visual)
+    const delta = event.deltaY > 0 ? 0.9 : 1.1
+    internalZoom.value = Math.max(0.5, Math.min(internalZoom.value * delta, 3))
+}
+
+// Navegación principal: Convertir posición del mouse en minimapa a posición de canvas
+const navigate = (event: MouseEvent) => {
+    if (!miniMapRef.value) return
+
+    const rect = miniMapRef.value.getBoundingClientRect()
+    // Coordenadas relativas al contenedor del minimapa
+    const miniX = Math.max(0, Math.min(event.clientX - rect.left, rect.width))
+    const miniY = Math.max(0, Math.min(event.clientY - rect.top, rect.height))
+
+    // Convertir a coordenadas del mundo (centro de la vista deseada)
+    const worldCenter = mapToWorld(miniX, miniY)
+
+    // Calcular el desplazamiento del canvas (x, y) necesario para centrar ese punto
+    // Canvas Translation = CenterOfScreen - (WorldPoint * Scale)
+    const newCanvasX = (props.containerWidth / 2) - (worldCenter.x * props.canvasScale)
+    const newCanvasY = (props.containerHeight / 2) - (worldCenter.y * props.canvasScale)
+
+    emit('navigate', newCanvasX, newCanvasY)
+}
+
+// Resetear zoom interno si cambian los paneles drásticamente
+// (Opcional: podrías usar un watch en paneles.length)
+
 </script>
+
+<style scoped>
+/* Transiciones suaves para los elementos del mapa */
+.cursor-crosshair {
+    cursor: crosshair;
+}
+.cursor-move {
+    cursor: move;
+}
+</style>
