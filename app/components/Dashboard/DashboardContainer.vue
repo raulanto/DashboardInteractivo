@@ -28,6 +28,36 @@
                     <!-- Grid de fondo infinito -->
                     <div class="absolute pointer-events-none" :style="gridStyle"></div>
 
+                    <!-- Guías de Alineación (NUEVO) -->
+                    <template v-for="(guia, index) in guiasAlineacion" :key="index">
+                        <!-- Guía Vertical -->
+                        <div
+                            v-if="guia.tipo === 'vertical'"
+                            class="absolute w-px bg-red-500 z-50 pointer-events-none shadow-[0_0_2px_rgba(255,255,255,0.8)]"
+                            :style="{
+                                left: `${guia.x}px`,
+                                top: `${guia.inicio}px`,
+                                height: `${guia.longitud}px`
+                            }"
+                        >
+                            <!-- Etiqueta de distancia opcional -->
+                            <!-- <div class="absolute top-1/2 left-2 bg-red-500 text-white text-[10px] px-1 rounded -translate-y-1/2">
+                                {{ Math.round(guia.longitud) }}px
+                            </div> -->
+                        </div>
+                        <!-- Guía Horizontal -->
+                        <div
+                            v-else
+                            class="absolute h-px bg-red-500 z-50 pointer-events-none shadow-[0_0_2px_rgba(255,255,255,0.8)]"
+                            :style="{
+                                left: `${guia.inicio}px`,
+                                top: `${guia.y}px`,
+                                width: `${guia.longitud}px`
+                            }"
+                        >
+                        </div>
+                    </template>
+
                     <!-- Paneles -->
                     <Panel
                         v-for="panel in paneles"
@@ -148,6 +178,7 @@ import { usePanelManager } from "~/composables/usePanelManager";
 import { usePanelDrag } from "~/composables/usePanelDrag";
 import { usePanelResize } from "~/composables/usePanelResize";
 import { useCanvasPan } from "~/composables/useCanvasPan";
+import { usePanelAlignment } from "~/composables/usePanelAlignment"; // Importar nuevo composable
 
 import Panel from "~/components/Panel.vue";
 import DashboardControls from "~/components/Dashboard/DashboardControls.vue";
@@ -185,7 +216,7 @@ const {
     limpiarTodos,
     autoOrganizarPaneles,
     autoOrganizarMasonry,
-    activarPanel, // <--- Se agregó esta función que faltaba
+    activarPanel,
 } = usePanelManager();
 
 const {
@@ -211,6 +242,13 @@ const {
     hacerZoom,
     resetearCanvas,
 } = useCanvasPan();
+
+// Nuevo composable de alineación
+const {
+    guias: guiasAlineacion,
+    verificarAlineacion,
+    limpiarGuias
+} = usePanelAlignment();
 
 // Computed properties
 const canvasStyle = computed(() => ({
@@ -303,7 +341,19 @@ const handleMouseMove = (event: MouseEvent) => {
     if (canvas.value.panning && modoPanActivo.value) {
         moverCanvas(event);
     } else if (isDragging.value && modoDragActivo.value) {
+        // 1. Mover el panel normalmente (posición raw)
         moverPanelDrag(event, canvas.value.x, canvas.value.y, canvas.value.scale);
+
+        // 2. Verificar alineación y aplicar snap
+        const panelActivo = paneles.value.find(p => p.arrastrando);
+        if (panelActivo) {
+            const { snapX, snapY } = verificarAlineacion(panelActivo, paneles.value);
+
+            // Aplicar snap si se detectó alineación
+            if (snapX !== null) panelActivo.posicion.x = snapX;
+            if (snapY !== null) panelActivo.posicion.y = snapY;
+        }
+
     } else if (isResizing.value) {
         redimensionarPanel(
             event,
@@ -319,6 +369,7 @@ const handleMouseUp = () => {
         detenerPan();
     } else if (isDragging.value) {
         soltarPanel();
+        limpiarGuias(); // Limpiar guías al soltar
     } else if (isResizing.value) {
         finalizarRedimension();
     }
