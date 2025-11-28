@@ -18,7 +18,7 @@ export const useCanvasPan = () => {
      * Inicia el paneo del canvas
      */
     const iniciarPan = (event: MouseEvent) => {
-        // Solo permitir pan con botón central o espacio + click
+        
         const esPanPermitido = event.button === 1 || (event.button === 0 && event.shiftKey)
 
         if (!esPanPermitido) return
@@ -113,11 +113,11 @@ export const useCanvasPan = () => {
     }
 
     return {
-        // State
+
         canvas,
         isPanning,
 
-        // Methods
+
         iniciarPan,
         moverCanvas,
         detenerPan,

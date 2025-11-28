@@ -6,13 +6,13 @@
                 ref="contenedorRef"
                 class="relative overflow-hidden border flex-1 transition-colors"
                 :class="[
-          modoPanActivo
-            ? 'border-blue-400 bg-blue-50/20 dark:bg-blue-950/20'
-            : '',
-          modoDragActivo
-            ? 'border-green-400 bg-green-50/20 dark:bg-green-950/20'
-            : '',
-        ]"
+                  modoPanActivo
+                    ? 'border-blue-400 bg-blue-50/20 dark:bg-blue-950/20'
+                    : '',
+                  modoDragActivo
+                    ? 'border-green-400 bg-green-50/20 dark:bg-green-950/20'
+                    : '',
+                ]"
                 @mousedown="handleMouseDown"
                 @mousemove="handleMouseMove"
                 @mouseup="handleMouseUp"
@@ -28,33 +28,42 @@
                     <!-- Grid de fondo infinito -->
                     <div class="absolute pointer-events-none" :style="gridStyle"></div>
 
-                    <!-- Guías de Alineación (NUEVO) -->
-                    <template v-for="(guia, index) in guiasAlineacion" :key="index">
-                        <!-- Guía Vertical -->
+                    <!-- CAPA DE GUÍAS -->
+
+                    <!-- 1. Guías de Alineación (Rojas - Snap) -->
+                    <template v-for="(guia, i) in alignmentGuides" :key="`align-${i}`">
                         <div
-                            v-if="guia.tipo === 'vertical'"
-                            class="absolute w-px bg-red-500 z-50 pointer-events-none shadow-[0_0_2px_rgba(255,255,255,0.8)]"
+                            class="absolute bg-red-500 z-40 pointer-events-none"
                             :style="{
-                                left: `${guia.x}px`,
-                                top: `${guia.inicio}px`,
-                                height: `${guia.longitud}px`
+                                left: guia.type === 'vertical' ? `${guia.pos}px` : `${guia.start}px`,
+                                top: guia.type === 'horizontal' ? `${guia.pos}px` : `${guia.start}px`,
+                                width: guia.type === 'vertical' ? '1px' : `${guia.length}px`,
+                                height: guia.type === 'horizontal' ? '1px' : `${guia.length}px`
+                            }"
+                        ></div>
+                    </template>
+
+                    <!-- 2. Guías de Medición (Azules - Margen) -->
+                    <template v-for="(measure, i) in measurementGuides" :key="`measure-${i}`">
+                        <div
+                            class="absolute flex items-center justify-center z-50 pointer-events-none"
+                            :class="measure.type === 'horizontal' ? 'flex-row' : 'flex-col'"
+                            :style="{
+                                left: `${measure.x}px`,
+                                top: `${measure.y}px`,
+                                width: measure.type === 'horizontal' ? `${measure.length}px` : '1px',
+                                height: measure.type === 'vertical' ? `${measure.length}px` : '1px'
                             }"
                         >
-                            <!-- Etiqueta de distancia opcional -->
-                            <!-- <div class="absolute top-1/2 left-2 bg-red-500 text-white text-[10px] px-1 rounded -translate-y-1/2">
-                                {{ Math.round(guia.longitud) }}px
-                            </div> -->
-                        </div>
-                        <!-- Guía Horizontal -->
-                        <div
-                            v-else
-                            class="absolute h-px bg-red-500 z-50 pointer-events-none shadow-[0_0_2px_rgba(255,255,255,0.8)]"
-                            :style="{
-                                left: `${guia.inicio}px`,
-                                top: `${guia.y}px`,
-                                width: `${guia.longitud}px`
-                            }"
-                        >
+                            <!-- Línea punteada -->
+                            <div class="absolute bg-blue-500/50"
+                                 :class="measure.type === 'horizontal' ? 'h-px w-full' : 'w-px h-full'"
+                            ></div>
+
+                            <!-- Etiqueta de valor -->
+                            <div class="relative bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm z-10 whitespace-nowrap">
+                                {{ measure.value }}px
+                            </div>
                         </div>
                     </template>
 
@@ -144,6 +153,7 @@
             :visible="mapaVisible"
             @navigate="navegarDesdeMapa"
             @toggle="toggleMapa"
+            @fit-view="ajustarVistaGlobal"
         />
 
         <!-- Slideovers de configuración -->
@@ -165,46 +175,38 @@
             :data="panelConfigurando.data as TablaData"
             @save="guardarConfigPanel"
         />
-        <!-- Agrega aquí más slideovers si es necesario -->
-
     </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import type { Panel as PanelInterface, PanelType, PanelData, GraficoData, EstadisticaData, TablaData } from "~/types/panel"; // Importar tipos específicos
+import type { Panel as PanelInterface, PanelType, PanelData, GraficoData, EstadisticaData, TablaData } from "~/types/panel";
 
 import { usePanelManager } from "~/composables/usePanelManager";
 import { usePanelDrag } from "~/composables/usePanelDrag";
 import { usePanelResize } from "~/composables/usePanelResize";
 import { useCanvasPan } from "~/composables/useCanvasPan";
-import { usePanelAlignment } from "~/composables/usePanelAlignment"; // Importar nuevo composable
+import { usePanelAlignment } from "~/composables/usePanelAlignment"; // Importamos el nuevo composable
 
 import Panel from "~/components/Panel.vue";
 import DashboardControls from "~/components/Dashboard/DashboardControls.vue";
 import MiniMap from "~/components/MiniMap.vue";
 
-// Importar los nuevos slideovers
 import SlideoverConfigGrafico from "~/components/SlideoverConfigGrafico.vue";
 import SlideoverConfigEstadistica from "~/components/SlideoverConfigEstadistica.vue";
 import SlideoverConfigTabla from "~/components/SlideoverConfigTabla.vue";
 
 const contenedorRef = ref<HTMLElement | null>(null);
-const mostrarAyuda = ref(false);
 const mapaVisible = ref(true);
 
-// Estados de los modos
 const modoPanActivo = ref(true);
 const modoDragActivo = ref(true);
 
-// Estado de los Slideovers de configuración
-const panelConfigurando = ref<PanelInterface | null>(null); // Panel que se está configurando
+const panelConfigurando = ref<PanelInterface | null>(null);
 const slideoverGraficoAbierto = ref(false);
 const slideoverEstadisticaAbierto = ref(false);
 const slideoverTablaAbierto = ref(false);
-// Agrega más refs para otros slideovers si los creas
 
-// Composables
 const {
     paneles,
     totalPaneles,
@@ -241,16 +243,17 @@ const {
     detenerPan,
     hacerZoom,
     resetearCanvas,
+    ajustarZoomATodos
 } = useCanvasPan();
 
-// Nuevo composable de alineación
+// Nuevo composable de alineación y medición
 const {
-    guias: guiasAlineacion,
+    alignmentGuides,
+    measurementGuides,
     verificarAlineacion,
     limpiarGuias
 } = usePanelAlignment();
 
-// Computed properties
 const canvasStyle = computed(() => ({
     transform: `translate(${canvas.value.x}px, ${canvas.value.y}px) scale(${canvas.value.scale})`,
     transformOrigin: "0 0",
@@ -282,15 +285,12 @@ const gridStyle = computed(() => {
 const obtenerCursorClase = computed(() => {
     if (canvas.value.panning) return "cursor-grabbing";
     if (isDragging.value || isResizing.value) return "";
-
     if (modoPanActivo.value && !modoDragActivo.value) return "cursor-grab";
     if (!modoPanActivo.value && modoDragActivo.value) return "cursor-move";
     if (modoPanActivo.value && modoDragActivo.value) return "cursor-grab";
-
     return "cursor-default";
 });
 
-// Funciones de modos
 const toggleModoPan = () => {
     modoPanActivo.value = !modoPanActivo.value;
     if (!modoPanActivo.value && canvas.value.panning) {
@@ -309,27 +309,37 @@ const toggleMapa = () => {
     mapaVisible.value = !mapaVisible.value;
 };
 
-// Navegación desde el minimapa
 const navegarDesdeMapa = (x: number, y: number) => {
     canvas.value.x = x;
     canvas.value.y = y;
 };
 
-// Event Handlers
+const ajustarVistaGlobal = () => {
+    if (paneles.value.length === 0 || !contenedorRef.value) return;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    paneles.value.forEach(p => {
+        if (p.posicion.x < minX) minX = p.posicion.x;
+        if (p.posicion.y < minY) minY = p.posicion.y;
+        if (p.posicion.x + p.tamaño.width > maxX) maxX = p.posicion.x + p.tamaño.width;
+        if (p.posicion.y + p.tamaño.height > maxY) maxY = p.posicion.y + p.tamaño.height;
+    });
+    if (minX === Infinity) return;
+    ajustarZoomATodos(minX, minY, maxX, maxY, contenedorRef.value.clientWidth, contenedorRef.value.clientHeight, 50);
+};
+
 const handleMouseDown = (event: MouseEvent) => {
     if (modoPanActivo.value && (event.shiftKey || event.button === 1)) {
         iniciarPan(event);
         return;
     }
-
     if (modoPanActivo.value && !modoDragActivo.value && event.button === 0) {
         iniciarPan(event);
         return;
     }
-
-    // Desactivar paneles si se hace clic fuera de un panel
     const targetElement = event.target as HTMLElement;
-    // Asegurarse de que el clic no fue dentro de un panel o sus controles
     if (targetElement === contenedorRef.value || targetElement.classList.contains('canvas-wrapper')) {
         if (!isDragging.value && !isResizing.value) {
             desactivarTodos();
@@ -341,26 +351,19 @@ const handleMouseMove = (event: MouseEvent) => {
     if (canvas.value.panning && modoPanActivo.value) {
         moverCanvas(event);
     } else if (isDragging.value && modoDragActivo.value) {
-        // 1. Mover el panel normalmente (posición raw)
+        // 1. Mover el panel
         moverPanelDrag(event, canvas.value.x, canvas.value.y, canvas.value.scale);
 
-        // 2. Verificar alineación y aplicar snap
+        // 2. Calcular alineación y distancia
         const panelActivo = paneles.value.find(p => p.arrastrando);
         if (panelActivo) {
             const { snapX, snapY } = verificarAlineacion(panelActivo, paneles.value);
-
-            // Aplicar snap si se detectó alineación
             if (snapX !== null) panelActivo.posicion.x = snapX;
             if (snapY !== null) panelActivo.posicion.y = snapY;
         }
 
     } else if (isResizing.value) {
-        redimensionarPanel(
-            event,
-            canvas.value.x,
-            canvas.value.y,
-            canvas.value.scale
-        );
+        redimensionarPanel(event, canvas.value.x, canvas.value.y, canvas.value.scale);
     }
 };
 
@@ -381,37 +384,20 @@ const handleMouseLeave = () => {
 
 const handleWheel = (event: WheelEvent) => {
     if (!contenedorRef.value) return;
-
     const rect = contenedorRef.value.getBoundingClientRect();
     const centerX = event.clientX - rect.left;
     const centerY = event.clientY - rect.top;
-
     hacerZoom(event.deltaY, centerX, centerY);
 };
 
-// Panel Handlers
 const iniciarArrastrePanel = (panel: PanelInterface, event: MouseEvent) => {
     if (!modoDragActivo.value) return;
-    iniciarArrastre(
-        panel,
-        event,
-        canvas.value.x,
-        canvas.value.y,
-        canvas.value.scale
-    );
-    // Activar el panel al iniciar el arrastre
     activarPanel(panel.id);
+    iniciarArrastre(panel, event, canvas.value.x, canvas.value.y, canvas.value.scale);
 };
 
 const iniciarRedimensionPanel = (panel: PanelInterface, event: MouseEvent) => {
-    iniciarRedimension(
-        panel,
-        event,
-        canvas.value.x,
-        canvas.value.y,
-        canvas.value.scale
-    );
-    // Activar el panel al iniciar la redimensión
+    iniciarRedimension(panel, event, canvas.value.x, canvas.value.y, canvas.value.scale);
     activarPanel(panel.id);
 };
 
@@ -422,57 +408,31 @@ const actualizarDataPanel = (panelId: string, nuevaData: PanelData) => {
     }
 };
 
-// --- Configuración de Paneles ---
 const abrirConfigPanel = (panel: PanelInterface) => {
-    console.log("Abriendo configuración para panel:", panel.id, panel.tipo);
-    panelConfigurando.value = panel; // Guardar el panel actual
+    panelConfigurando.value = panel;
     switch (panel.tipo) {
-        case 'grafico':
-            slideoverGraficoAbierto.value = true;
-            break;
-        case 'estadistica':
-            slideoverEstadisticaAbierto.value = true;
-            break;
-        case 'tabla':
-            slideoverTablaAbierto.value = true;
-            break;
-        // Agrega casos para otros tipos de panel aquí
-        default:
-            console.warn(`Configuración no implementada para el tipo de panel: ${panel.tipo}`);
-            panelConfigurando.value = null; // Resetear si no hay config
+        case 'grafico': slideoverGraficoAbierto.value = true; break;
+        case 'estadistica': slideoverEstadisticaAbierto.value = true; break;
+        case 'tabla': slideoverTablaAbierto.value = true; break;
     }
 };
 
 const guardarConfigPanel = (nuevaData: PanelData) => {
     if (panelConfigurando.value) {
         actualizarDataPanel(panelConfigurando.value.id, nuevaData);
-        // Cerrar el slideover específico (esto se maneja con v-model ahora)
-        // No necesitamos cerrar explícitamente aquí si usamos v-model correctamente
-        panelConfigurando.value = null; // Limpiar el panel en configuración
+        panelConfigurando.value = null;
     }
 }
 
 const handleAgregarPanel = (tipo: PanelType) => {
     if (!contenedorRef.value) return;
-
     const rect = contenedorRef.value.getBoundingClientRect();
-    const nuevoPanel = agregarPanel(
-        tipo,
-        rect.width,
-        rect.height,
-        canvas.value.x,
-        canvas.value.y
-    );
-
-    // Si es un gráfico, tabla o estadistica, abrir automáticamente la configuración
+    const nuevoPanel = agregarPanel(tipo, rect.width, rect.height, canvas.value.x, canvas.value.y);
     if ((tipo === 'grafico' || tipo === 'tabla' || tipo === 'estadistica') && nuevoPanel) {
-        setTimeout(() => {
-            abrirConfigPanel(nuevoPanel);
-        }, 100); // Pequeño delay para asegurar que el panel se renderice
+        setTimeout(() => abrirConfigPanel(nuevoPanel), 100);
     }
 };
 
-// Zoom Controls
 const zoomIn = () => {
     if (!contenedorRef.value) return;
     const rect = contenedorRef.value.getBoundingClientRect();
@@ -485,37 +445,19 @@ const zoomOut = () => {
     hacerZoom(100, rect.width / 2, rect.height / 2);
 };
 
-const resetearVista = () => {
-    resetearCanvas();
-};
+const resetearVista = () => resetearCanvas();
+const confirmarLimpiar = () => limpiarTodos();
+const autoOrganizar = () => { autoOrganizarPaneles(); resetearCanvas(); };
+const autoOrganizarPanelesMansory = () => { autoOrganizarMasonry(); resetearCanvas(); };
 
-// Organization
-const confirmarLimpiar = () => {
-    limpiarTodos();
-};
-
-const autoOrganizar = () => {
-    autoOrganizarPaneles();
-    resetearCanvas();
-};
-
-const autoOrganizarPanelesMansory = () => {
-    autoOrganizarMasonry();
-    resetearCanvas();
-};
-
-// Lifecycle
 onMounted(() => {
-    // Inicialización o carga de paneles guardados iría aquí
     document.addEventListener("mousedown", (e) => {
-        // Prevenir paneo por defecto del navegador con rueda del ratón
         if (e.button === 1) e.preventDefault();
     });
 });
 
 onBeforeUnmount(() => {
-    // Limpiar listeners si es necesario
-    handleMouseUp(); // Asegurarse de que no queden estados activos
+    handleMouseUp();
 });
 </script>
 
@@ -523,24 +465,14 @@ onBeforeUnmount(() => {
 .canvas-wrapper {
     will-change: transform;
 }
-
 .canvas-wrapper * {
     user-select: none;
     -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
 }
-
 @keyframes pulse {
-    0%,
-    100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.7;
-    }
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
 }
-
 .animate-pulse {
     animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }

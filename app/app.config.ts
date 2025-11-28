@@ -16,5 +16,11 @@ export default defineAppConfig({
                 viewport: "z-[10001]",
             },
         },
-    }
+    },
+    toaster: {
+        position: 'top-center' as const,
+        duration: 5000,
+        max: 5,
+        expand: true
+    },
 })

@@ -1,132 +1,205 @@
 import { ref } from 'vue'
 import type { Panel } from '~/types/panel'
 
-export interface GuiaAlineacion {
-    tipo: 'vertical' | 'horizontal'
+export interface AlignmentGuide {
+    type: 'vertical' | 'horizontal'
+    pos: number // Coordenada X o Y de la línea
+    start: number
+    length: number
+}
+
+export interface MeasurementGuide {
+    type: 'horizontal' | 'vertical'
     x: number
     y: number
-    longitud: number
-    inicio: number // Coordenada donde empieza la línea
+    length: number
+    value: number // El valor en px
 }
 
 export const usePanelAlignment = () => {
-    const guias = ref<GuiaAlineacion[]>([])
+    const alignmentGuides = ref<AlignmentGuide[]>([])
+    const measurementGuides = ref<MeasurementGuide[]>([])
 
     const limpiarGuias = () => {
-        guias.value = []
+        alignmentGuides.value = []
+        measurementGuides.value = []
     }
 
     /**
-     * Compara el panel activo con los demás y calcula guías y posición de snap
+     * Verifica alineación (snap) y calcula distancias (smart margins)
      */
-    const verificarAlineacion = (panelActivo: Panel, paneles: Panel[], threshold: number = 5) => {
-        const activeRect = {
-            left: panelActivo.posicion.x,
-            right: panelActivo.posicion.x + panelActivo.tamaño.width,
-            top: panelActivo.posicion.y,
-            bottom: panelActivo.posicion.y + panelActivo.tamaño.height,
-            centerX: panelActivo.posicion.x + panelActivo.tamaño.width / 2,
-            centerY: panelActivo.posicion.y + panelActivo.tamaño.height / 2,
-            width: panelActivo.tamaño.width,
-            height: panelActivo.tamaño.height
+    const verificarAlineacion = (activePanel: Panel, panels: Panel[], threshold: number = 8) => {
+        // Resetear guías
+        const newAlignGuides: AlignmentGuide[] = []
+        const newMeasureGuides: MeasurementGuide[] = []
+
+
+        const aRect = {
+            l: activePanel.posicion.x,
+            r: activePanel.posicion.x + activePanel.tamaño.width,
+            t: activePanel.posicion.y,
+            b: activePanel.posicion.y + activePanel.tamaño.height,
+            cx: activePanel.posicion.x + activePanel.tamaño.width / 2,
+            cy: activePanel.posicion.y + activePanel.tamaño.height / 2,
+            w: activePanel.tamaño.width,
+            h: activePanel.tamaño.height
         }
 
         let snapX: number | null = null
         let snapY: number | null = null
-        const nuevasGuias: GuiaAlineacion[] = []
 
-        // Filtrar el panel activo para no compararlo consigo mismo
-        const otrosPaneles = paneles.filter(p => p.id !== panelActivo.id)
+        let minDistRight = Infinity
+        let minDistLeft = Infinity
+        let minDistTop = Infinity
+        let minDistBottom = Infinity
 
-        for (const otro of otrosPaneles) {
-            const targetRect = {
-                left: otro.posicion.x,
-                right: otro.posicion.x + otro.tamaño.width,
-                centerX: otro.posicion.x + otro.tamaño.width / 2,
-                top: otro.posicion.y,
-                bottom: otro.posicion.y + otro.tamaño.height,
-                centerY: otro.posicion.y + otro.tamaño.height / 2
+        let closestRight: MeasurementGuide | null = null
+        let closestLeft: MeasurementGuide | null = null
+        let closestTop: MeasurementGuide | null = null
+        let closestBottom: MeasurementGuide | null = null
+
+        const otherPanels = panels.filter(p => p.id !== activePanel.id)
+
+        for (const other of otherPanels) {
+            const bRect = {
+                l: other.posicion.x,
+                r: other.posicion.x + other.tamaño.width,
+                t: other.posicion.y,
+                b: other.posicion.y + other.tamaño.height,
+                cx: other.posicion.x + other.tamaño.width / 2,
+                cy: other.posicion.y + other.tamaño.height / 2
             }
 
-            // --- EJE X (Vertical Guides) ---
-            const checkX = [
-                { type: 'left', val: activeRect.left, targetVal: targetRect.left },
-                { type: 'left', val: activeRect.left, targetVal: targetRect.right },
-                { type: 'left', val: activeRect.left, targetVal: targetRect.centerX },
-                { type: 'right', val: activeRect.right, targetVal: targetRect.left },
-                { type: 'right', val: activeRect.right, targetVal: targetRect.right },
-                { type: 'right', val: activeRect.right, targetVal: targetRect.centerX },
-                { type: 'centerX', val: activeRect.centerX, targetVal: targetRect.left },
-                { type: 'centerX', val: activeRect.centerX, targetVal: targetRect.right },
-                { type: 'centerX', val: activeRect.centerX, targetVal: targetRect.centerX },
+
+            const xChecks = [
+                { val: aRect.l, target: bRect.l, type: 'l' },
+                { val: aRect.l, target: bRect.r, type: 'l' },
+                { val: aRect.l, target: bRect.cx, type: 'l' },
+                { val: aRect.r, target: bRect.l, type: 'r' },
+                { val: aRect.r, target: bRect.r, type: 'r' },
+                { val: aRect.r, target: bRect.cx, type: 'r' },
+                { val: aRect.cx, target: bRect.l, type: 'cx' },
+                { val: aRect.cx, target: bRect.r, type: 'cx' },
+                { val: aRect.cx, target: bRect.cx, type: 'cx' },
             ]
 
-            for (const check of checkX) {
-                if (Math.abs(check.val - check.targetVal) < threshold) {
-                    // Calcular offset para snap
+            for (const check of xChecks) {
+                if (Math.abs(check.val - check.target) < threshold) {
                     if (snapX === null) {
-                        if (check.type === 'left') snapX = check.targetVal
-                        else if (check.type === 'right') snapX = check.targetVal - activeRect.width
-                        else if (check.type === 'centerX') snapX = check.targetVal - activeRect.width / 2
+                        if (check.type === 'l') snapX = check.target
+                        else if (check.type === 'r') snapX = check.target - aRect.w
+                        else if (check.type === 'cx') snapX = check.target - aRect.w / 2
                     }
-
-                    // Definir visualización de la guía (abarca la altura combinada de ambos paneles)
-                    const minY = Math.min(activeRect.top, targetRect.top)
-                    const maxY = Math.max(activeRect.bottom, targetRect.bottom)
-
-                    nuevasGuias.push({
-                        tipo: 'vertical',
-                        x: check.targetVal,
-                        y: minY,
-                        inicio: minY,
-                        longitud: maxY - minY
+                    // Visualización de la guía
+                    const startY = Math.min(aRect.t, bRect.t)
+                    const endY = Math.max(aRect.b, bRect.b)
+                    newAlignGuides.push({
+                        type: 'vertical',
+                        pos: check.target,
+                        start: startY,
+                        length: endY - startY
                     })
                 }
             }
 
-            // --- EJE Y (Horizontal Guides) ---
-            const checkY = [
-                { type: 'top', val: activeRect.top, targetVal: targetRect.top },
-                { type: 'top', val: activeRect.top, targetVal: targetRect.bottom },
-                { type: 'top', val: activeRect.top, targetVal: targetRect.centerY },
-                { type: 'bottom', val: activeRect.bottom, targetVal: targetRect.top },
-                { type: 'bottom', val: activeRect.bottom, targetVal: targetRect.bottom },
-                { type: 'bottom', val: activeRect.bottom, targetVal: targetRect.centerY },
-                { type: 'centerY', val: activeRect.centerY, targetVal: targetRect.top },
-                { type: 'centerY', val: activeRect.centerY, targetVal: targetRect.bottom },
-                { type: 'centerY', val: activeRect.centerY, targetVal: targetRect.centerY },
+
+            const yChecks = [
+                { val: aRect.t, target: bRect.t, type: 't' },
+                { val: aRect.t, target: bRect.b, type: 't' },
+                { val: aRect.t, target: bRect.cy, type: 't' },
+                { val: aRect.b, target: bRect.t, type: 'b' },
+                { val: aRect.b, target: bRect.b, type: 'b' },
+                { val: aRect.b, target: bRect.cy, type: 'b' },
+                { val: aRect.cy, target: bRect.t, type: 'cy' },
+                { val: aRect.cy, target: bRect.b, type: 'cy' },
+                { val: aRect.cy, target: bRect.cy, type: 'cy' },
             ]
 
-            for (const check of checkY) {
-                if (Math.abs(check.val - check.targetVal) < threshold) {
-                    // Calcular offset para snap
+            for (const check of yChecks) {
+                if (Math.abs(check.val - check.target) < threshold) {
                     if (snapY === null) {
-                        if (check.type === 'top') snapY = check.targetVal
-                        else if (check.type === 'bottom') snapY = check.targetVal - activeRect.height
-                        else if (check.type === 'centerY') snapY = check.targetVal - activeRect.height / 2
+                        if (check.type === 't') snapY = check.target
+                        else if (check.type === 'b') snapY = check.target - aRect.h
+                        else if (check.type === 'cy') snapY = check.target - aRect.h / 2
                     }
-
-                    // Definir visualización de la guía (abarca la anchura combinada)
-                    const minX = Math.min(activeRect.left, targetRect.left)
-                    const maxX = Math.max(activeRect.right, targetRect.right)
-
-                    nuevasGuias.push({
-                        tipo: 'horizontal',
-                        x: minX,
-                        y: check.targetVal,
-                        inicio: minX,
-                        longitud: maxX - minX
+                    const startX = Math.min(aRect.l, bRect.l)
+                    const endX = Math.max(aRect.r, bRect.r)
+                    newAlignGuides.push({
+                        type: 'horizontal',
+                        pos: check.target,
+                        start: startX,
+                        length: endX - startX
                     })
+                }
+            }
+
+
+            const vertOverlapStart = Math.max(aRect.t, bRect.t)
+            const vertOverlapEnd = Math.min(aRect.b, bRect.b)
+            const hasVertOverlap = vertOverlapStart < vertOverlapEnd
+
+            if (hasVertOverlap) {
+                const centerY = (vertOverlapStart + vertOverlapEnd) / 2
+
+                if (bRect.l >= aRect.r) {
+                    const dist = bRect.l - aRect.r
+                    if (dist < minDistRight) {
+                        minDistRight = dist
+                        closestRight = { type: 'horizontal', x: aRect.r, y: centerY, length: dist, value: Math.round(dist) }
+                    }
+                }
+
+                if (aRect.l >= bRect.r) {
+                    const dist = aRect.l - bRect.r
+                    if (dist < minDistLeft) {
+                        minDistLeft = dist
+                        closestLeft = { type: 'horizontal', x: bRect.r, y: centerY, length: dist, value: Math.round(dist) }
+                    }
+                }
+            }
+
+
+            const horzOverlapStart = Math.max(aRect.l, bRect.l)
+            const horzOverlapEnd = Math.min(aRect.r, bRect.r)
+            const hasHorzOverlap = horzOverlapStart < horzOverlapEnd
+
+            if (hasHorzOverlap) {
+                const centerX = (horzOverlapStart + horzOverlapEnd) / 2
+
+
+                if (bRect.t >= aRect.b) {
+                    const dist = bRect.t - aRect.b
+                    if (dist < minDistBottom) {
+                        minDistBottom = dist
+                        closestBottom = { type: 'vertical', x: centerX, y: aRect.b, length: dist, value: Math.round(dist) }
+                    }
+                }
+
+                if (aRect.t >= bRect.b) {
+                    const dist = aRect.t - bRect.b
+                    if (dist < minDistTop) {
+                        minDistTop = dist
+                        closestTop = { type: 'vertical', x: centerX, y: bRect.b, length: dist, value: Math.round(dist) }
+                    }
                 }
             }
         }
 
-        guias.value = nuevasGuias
+
+        if (closestRight) newMeasureGuides.push(closestRight)
+        if (closestLeft) newMeasureGuides.push(closestLeft)
+        if (closestTop) newMeasureGuides.push(closestTop)
+        if (closestBottom) newMeasureGuides.push(closestBottom)
+
+        alignmentGuides.value = newAlignGuides
+        measurementGuides.value = newMeasureGuides
+
         return { snapX, snapY }
     }
 
     return {
-        guias,
+        alignmentGuides,
+        measurementGuides,
         verificarAlineacion,
         limpiarGuias
     }
