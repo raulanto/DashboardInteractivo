@@ -145,6 +145,8 @@ export interface GraficoSerie {
 
 export interface GraficoData {
     titulo?: string
+    // Permite usar datos locales O un ID de dataset global
+    datasetId?: string
     datos: GraficoDataPoint[]
     series: GraficoSerie[]
     curveType?: string
@@ -162,6 +164,8 @@ export interface ListaData {
 }
 
 export interface TablaData {
+    // Permite usar datos locales O un ID de dataset global
+    datasetId?: string
     columnas: string[]
     filas: (string | number)[][]
 }

@@ -53,7 +53,7 @@ definePageMeta({
 
 <style>
 .fondo {
-    background: radial-gradient(ellipse 85% 90% at 50% 0%, rgba(62, 146, 250, 0.59), transparent 70%);
+    background: radial-gradient(ellipse 85% 90% at 50% 0%, rgb(119, 29, 216), transparent 70%);
 }
 
 </style>

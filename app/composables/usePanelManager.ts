@@ -1,14 +1,22 @@
 import { ref, computed } from 'vue'
 import type { Panel, PanelType, PanelData } from '~/types/panel'
-import { PANEL_SIZE_PRESETS } from '~/types/panel'
+import { PANEL_SIZE_PRESETS, type GraficoData, type TablaData } from '~/types/panel'
+import { useGlobalDataStore } from './useGlobalDataStore' // Importar el nuevo store
 
 const paneles = ref<Panel[]>([])
 const maxZIndex = ref(1)
+
+// Usar el store de datos globales
+const { datasets } = useGlobalDataStore()
+
 
 /**
  * Obtiene datos de ejemplo según el tipo de panel
  */
 const obtenerDataEjemplo = (tipo: PanelType): PanelData => {
+    // No longer automatically assigns global dataset ID here for 'grafico' or 'tabla'
+    // It will start with local data, and the user can choose a global dataset in the config slideover.
+
     switch (tipo) {
         case 'estadistica':
             return {
@@ -17,13 +25,22 @@ const obtenerDataEjemplo = (tipo: PanelType): PanelData => {
             }
 
         case 'grafico':
+            // Datos de ejemplo predeterminados (local)
             return {
+                titulo: 'Gráfico de Rendimiento',
+                xAxisKey: 'date', // Default X-axis key
                 datos: [
-                    { label: 'Ventas', valor: Math.floor(Math.random() * 100) },
-                    { label: 'Marketing', valor: Math.floor(Math.random() * 100) },
-                    { label: 'Desarrollo', valor: Math.floor(Math.random() * 100) },
-                    { label: 'Soporte', valor: Math.floor(Math.random() * 100) }
-                ]
+                    { date: '2024-07-01', ValorA: 50, ValorB: 30 },
+                    { date: '2024-08-01', ValorA: 75, ValorB: 45 },
+                    { date: '2024-09-01', ValorA: 60, ValorB: 55 },
+                ],
+                // Series now only stores configuration for *selected* series by default
+                series: [
+                    { key: 'ValorA', name: 'Valor A', color: '#3b82f6' },
+                    // { key: 'ValorB', name: 'Valor B', color: '#22c55e' } // Example: Start with only one series selected
+                ],
+                curveType: 'monotoneX',
+                legendPosition: 'top'
             }
 
         case 'lista':
@@ -37,13 +54,21 @@ const obtenerDataEjemplo = (tipo: PanelType): PanelData => {
             }
 
         case 'tabla':
+            // Check if a global table dataset exists to use its structure, but don't link it automatically
+            const globalTableExample = datasets.value.find(d => d.tipo === 'tabla')
+            if (globalTableExample) {
+                return {
+                    columnas: [...globalTableExample.columnas],
+                    // Provide one empty row matching the global structure as a starting point
+                    filas: [globalTableExample.columnas.map(() => '')]
+                }
+            }
+            // Datos de ejemplo predeterminados (local) si no hay global
             return {
                 columnas: ['Nombre', 'Cargo', 'Estado'],
                 filas: [
                     ['Juan Pérez', 'Desarrollador', 'Activo'],
                     ['María García', 'Diseñadora', 'Activo'],
-                    ['Carlos López', 'Manager', 'Inactivo'],
-                    ['Ana Martínez', 'Product Owner', 'Activo']
                 ]
             }
 
@@ -57,7 +82,8 @@ const obtenerDataEjemplo = (tipo: PanelType): PanelData => {
             return { contenido: '' }
 
         default:
-            return {}
+            // Asegurarse que siempre devuelva un objeto, aunque esté vacío
+            return {} as PanelData;
     }
 }
 
@@ -123,7 +149,7 @@ export const usePanelManager = () => {
                 width: sizePreset.width,
                 height: sizePreset.height
             },
-            data: obtenerDataEjemplo(tipo),
+            data: obtenerDataEjemplo(tipo), // Get example data (won't auto-link global data anymore)
             zIndex: maxZIndex.value++,
             activo: false,
             arrastrando: false,
@@ -134,6 +160,7 @@ export const usePanelManager = () => {
         return nuevoPanel
     }
 
+    // ... rest of the composable (eliminarPanel, duplicarPanel, etc.) ...
     /**
      * Elimina un panel por su ID
      */
@@ -165,6 +192,7 @@ export const usePanelManager = () => {
             activo: false,
             arrastrando: false,
             redimensionando: false,
+            // Deep clone data to avoid shared references
             data: JSON.parse(JSON.stringify(panelOriginal.data))
         }
 
@@ -179,6 +207,10 @@ export const usePanelManager = () => {
         const panel = paneles.value.find(p => p.id === id)
         if (panel) {
             Object.assign(panel, actualizaciones)
+            // If data is updated, ensure reactivity (Vue might not detect deep changes otherwise)
+            if ('data' in actualizaciones) {
+                panel.data = JSON.parse(JSON.stringify(actualizaciones.data));
+            }
         }
     }
 
@@ -200,11 +232,11 @@ export const usePanelManager = () => {
         if (panel) {
             const preset = PANEL_SIZE_PRESETS[panel.tipo]
 
-            // Aplicar límites mínimos
+            // Apply minimum limits
             let newWidth = Math.max(width, preset.minWidth)
             let newHeight = Math.max(height, preset.minHeight)
 
-            // Aplicar límites máximos si existen
+            // Apply maximum limits if they exist
             if (preset.maxWidth !== undefined) {
                 newWidth = Math.min(newWidth, preset.maxWidth)
             }
@@ -259,48 +291,56 @@ export const usePanelManager = () => {
 
         const padding = 20
         const margenInicial = 20
+        const anchoTotalDisponible = 1400 // Ancho típico de viewport ajustado
 
-        // Calcular el ancho máximo por fila basado en los paneles
-        const anchoMaximoPorFila = Math.max(
-            ...paneles.value.map(p => p.tamaño.width)
-        )
+        // Sort panels roughly by size (width * height) to attempt better packing
+        const panelesOrdenados = [...paneles.value].sort((a, b) =>
+            (a.tamaño.width * a.tamaño.height) - (b.tamaño.width * b.tamaño.height)
+        );
 
-        // Determinar número óptimo de columnas basado en anchos
-        const anchoTotalDisponible = 1400 // Ancho típico de viewport
-        const columnas = Math.max(
-            1,
-            Math.floor(anchoTotalDisponible / (anchoMaximoPorFila + padding))
-        )
 
-        // Organizar paneles en filas
-        const filas: Panel[][] = []
-        for (let i = 0; i < paneles.value.length; i += columnas) {
-            filas.push(paneles.value.slice(i, i + columnas))
-        }
+        let columnas = 3; // Start with a default, adjust if needed
+        const anchosColumna = Array(columnas).fill(margenInicial);
+        const alturasColumna = Array(columnas).fill(margenInicial);
 
-        let yActual = margenInicial
 
-        // Posicionar cada fila
-        filas.forEach((fila) => {
-            // Encontrar la altura máxima de esta fila
-            const alturaMaximaFila = Math.max(...fila.map(p => p.tamaño.height))
-
-            let xActual = margenInicial
-
-            // Posicionar cada panel en la fila
-            fila.forEach((panel) => {
-                panel.posicion = {
-                    x: xActual,
-                    y: yActual
+        panelesOrdenados.forEach((panel) => {
+            // Find the column with the minimum height
+            let colIndex = 0;
+            let minAltura = alturasColumna[0];
+            for (let i = 1; i < columnas; i++) {
+                if (alturasColumna[i] < minAltura) {
+                    minAltura = alturasColumna[i];
+                    colIndex = i;
                 }
+            }
 
-                // Mover x para el siguiente panel (usar el ancho del panel actual)
-                xActual += panel.tamaño.width + padding
-            })
+            // Calculate X position based on previous columns' max widths
+            let xPos = margenInicial;
+            for (let i = 0; i < colIndex; i++) {
+                xPos += anchosColumna[i] + padding;
+            }
 
-            // Mover y para la siguiente fila (usar la altura máxima de la fila actual)
-            yActual += alturaMaximaFila + padding
-        })
+
+            panel.posicion = {
+                x: xPos,
+                y: alturasColumna[colIndex]
+            };
+
+            // Update column height and max width for this column
+            alturasColumna[colIndex] += panel.tamaño.height + padding;
+            anchosColumna[colIndex] = Math.max(anchosColumna[colIndex], panel.tamaño.width);
+
+        });
+
+        // Re-assign sorted panel positions back to the original array to maintain reactivity order
+        panelesOrdenados.forEach(sortedPanel => {
+            const originalPanel = paneles.value.find(p => p.id === sortedPanel.id);
+            if (originalPanel) {
+                originalPanel.posicion = sortedPanel.posicion;
+            }
+        });
+
     }
 
     /**
@@ -308,87 +348,79 @@ export const usePanelManager = () => {
      * Respeta los tamaños actuales y evita encimamientos
      */
     const autoOrganizarMasonry = () => {
-        if (paneles.value.length === 0) return
+        if (paneles.value.length === 0) return;
 
-        const padding = 20
-        const margenInicial = 20
+        const padding = 20;
+        const margenInicial = 20;
+        const anchoTotalDisponible = 1400; // Ancho típico ajustado
 
-        // Determinar número de columnas basado en el ancho promedio de los paneles
-        const anchoProm = paneles.value.reduce((sum, p) => sum + p.tamaño.width, 0) / paneles.value.length
-        const anchoTotalDisponible = 1400
+        // Determinar número de columnas basado en el ancho promedio
+        const anchoProm = paneles.value.reduce((sum, p) => sum + p.tamaño.width, 0) / paneles.value.length;
         const numColumnas = Math.max(
             1,
             Math.min(4, Math.floor(anchoTotalDisponible / (anchoProm + padding)))
-        )
+        );
 
-        // Crear estructura de columnas con información detallada
+        // Sort panels by height descending for a potentially better masonry fit
+        const panelesOrdenados = [...paneles.value].sort((a, b) => b.tamaño.height - a.tamaño.height);
+
+
         interface ColumnaInfo {
-            x: number          // Posición X de la columna
-            altura: number     // Altura actual de la columna
-            anchoMax: number   // Ancho máximo usado en esta columna
+            x: number;
+            altura: number;
+            anchoMax: number;
         }
 
-        const columnas: ColumnaInfo[] = []
+        const columnas: ColumnaInfo[] = Array.from({ length: numColumnas }, (_, i) => ({
+            x: 0, // Initial X, will be recalculated
+            altura: margenInicial,
+            anchoMax: 0,
+        }));
 
-        // Inicializar columnas
-        let xInicial = margenInicial
-        for (let i = 0; i < numColumnas; i++) {
-            columnas.push({
-                x: xInicial,
-                altura: margenInicial,
-                anchoMax: 0
-            })
-            // Dejar espacio para la columna más ancha posible
-            xInicial += 600 // Ancho máximo estimado por columna
-        }
 
-        // Colocar cada panel en la columna más corta
-        paneles.value.forEach((panel) => {
-            // Encontrar la columna con menor altura
-            let columnaMinIndex = 0
-            let alturaMinima = columnas[0].altura
+        panelesOrdenados.forEach((panel) => {
+            let colIndex = 0;
+            let minAltura = columnas[0].altura;
 
-            for (let i = 1; i < columnas.length; i++) {
-                if (columnas[i].altura < alturaMinima) {
-                    alturaMinima = columnas[i].altura
-                    columnaMinIndex = i
+            for (let i = 1; i < numColumnas; i++) {
+                if (columnas[i].altura < minAltura) {
+                    minAltura = columnas[i].altura;
+                    colIndex = i;
                 }
             }
 
-            const columnaSeleccionada = columnas[columnaMinIndex]
-
-            // Posicionar el panel
+            // Temporary position Y, X will be adjusted later
             panel.posicion = {
-                x: columnaSeleccionada.x,
-                y: columnaSeleccionada.altura
+                x: colIndex, // Store column index temporarily in x
+                y: columnas[colIndex].altura,
+            };
+
+            columnas[colIndex].altura += panel.tamaño.height + padding;
+            columnas[colIndex].anchoMax = Math.max(columnas[colIndex].anchoMax, panel.tamaño.width);
+        });
+
+        // Calculate final X positions
+        let xAcumulada = margenInicial;
+        for(let i = 0; i < numColumnas; i++) {
+            columnas[i].x = xAcumulada;
+            xAcumulada += columnas[i].anchoMax + padding;
+        }
+
+
+        // Assign final X positions to panels
+        panelesOrdenados.forEach((panel) => {
+            const colIndex = panel.posicion.x; // Retrieve the stored column index
+            panel.posicion.x = columnas[colIndex].x;
+
+            // Update the original panel array
+            const originalPanel = paneles.value.find(p => p.id === panel.id);
+            if (originalPanel) {
+                originalPanel.posicion = panel.posicion;
             }
-
-            // Actualizar información de la columna
-            columnaSeleccionada.altura += panel.tamaño.height + padding
-            columnaSeleccionada.anchoMax = Math.max(
-                columnaSeleccionada.anchoMax,
-                panel.tamaño.width
-            )
-        })
-
-        // Ajustar las posiciones X para evitar solapamientos
-        let xAcumulada = margenInicial
-        columnas.forEach((columna, index) => {
-            if (index > 0) {
-                xAcumulada += columnas[index - 1].anchoMax + padding
-            }
-
-            // Actualizar todos los paneles de esta columna
-            paneles.value.forEach((panel) => {
-                if (panel.posicion.x === columna.x) {
-                    panel.posicion.x = xAcumulada
-                }
-            })
-
-            columna.x = xAcumulada
-        })
+        });
     }
 
+    // ... (autoOrganizarCompacto remains the same) ...
     /**
      * Organiza los paneles en una cuadrícula compacta
      * Agrupa paneles similares en tamaño para mejor aprovechamiento del espacio
@@ -419,7 +451,8 @@ export const usePanelManager = () => {
 
             // Intentar colocar en una fila existente
             for (const fila of filas) {
-                const anchoNecesario = fila.anchoTotal + panel.tamaño.width + padding
+                const anchoNecesario = fila.anchoTotal + panel.tamaño.width + (fila.paneles.length > 0 ? padding : 0); // Add padding only if not the first element
+
 
                 if (anchoNecesario <= anchoMaximo) {
                     fila.paneles.push(panel)
@@ -452,19 +485,27 @@ export const usePanelManager = () => {
         filas.forEach((fila) => {
             let xActual = margenInicial
 
-            fila.paneles.forEach((panel) => {
-                // Centrar verticalmente en la fila
+            fila.paneles.forEach((panel, index) => {
+                // Centrar verticalmente en la fila (opcional, podrías alinear arriba también)
                 const offsetY = (fila.alturaMaxima - panel.tamaño.height) / 2
 
                 panel.posicion = {
                     x: xActual,
-                    y: fila.y + offsetY
+                    y: fila.y //+ offsetY // Align top for potentially cleaner look
                 }
+
+                // Update original panel
+                const originalPanel = paneles.value.find(p => p.id === panel.id);
+                if (originalPanel) {
+                    originalPanel.posicion = panel.posicion;
+                }
+
 
                 xActual += panel.tamaño.width + padding
             })
         })
     }
+
 
     /**
      * Exporta la configuración de todos los paneles
@@ -479,14 +520,22 @@ export const usePanelManager = () => {
     const importarPaneles = (json: string) => {
         try {
             const panelesImportados = JSON.parse(json) as Panel[]
+            // Basic validation (check if it's an array and has expected keys)
+            if (!Array.isArray(panelesImportados) || (panelesImportados.length > 0 && !panelesImportados[0].id)) {
+                throw new Error("Formato JSON inválido para importar paneles.");
+            }
+
             paneles.value = panelesImportados
 
-            const maxZ = Math.max(...panelesImportados.map(p => p.zIndex), 0)
+            const maxZ = Math.max(...panelesImportados.map(p => p.zIndex || 0), 0) // Ensure zIndex exists
             maxZIndex.value = maxZ + 1
+            console.log('Paneles importados correctamente.');
         } catch (error) {
             console.error('Error al importar paneles:', error)
+            // Consider using useToast() here if called from a Vue component context
         }
     }
+
 
     return {
         paneles,
@@ -507,3 +556,4 @@ export const usePanelManager = () => {
         importarPaneles
     }
 }
+
