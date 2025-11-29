@@ -13,10 +13,10 @@
                 class="relative overflow-hidden border flex-1 transition-colors"
                 :class="[
                   modoPanActivo
-                    ? 'border-blue-400 bg-blue-50/20 dark:bg-blue-950/20'
+                    ? 'border-primary-400 bg-primary-50/50 dark:bg-primary-950/20'
                     : '',
                   modoDragActivo
-                    ? 'border-green-400 bg-green-50/20 dark:bg-green-950/20'
+                    ? 'border-green-400 bg-green-50/50 dark:bg-green-950/20'
                     : '',
                 ]"
                 @mousedown="handleMouseDown"
@@ -185,15 +185,22 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { useRoute } from 'vue-router'; // Importar useRoute para leer la URL
-import type { Panel as PanelInterface, PanelType, PanelData, GraficoData, EstadisticaData, TablaData } from "~/types/panel";
+import {computed, onBeforeUnmount, onMounted, ref} from "vue";
+import {useRoute} from 'vue-router'; // Importar useRoute para leer la URL
+import type {
+    EstadisticaData,
+    GraficoData,
+    Panel as PanelInterface,
+    PanelData,
+    PanelType,
+    TablaData
+} from "~/types/panel";
 
-import { usePanelManager } from "~/composables/usePanelManager";
-import { usePanelDrag } from "~/composables/usePanelDrag";
-import { usePanelResize } from "~/composables/usePanelResize";
-import { useCanvasPan } from "~/composables/useCanvasPan";
-import { usePanelAlignment } from "~/composables/usePanelAlignment";
+import {usePanelManager} from "~/composables/usePanelManager";
+import {usePanelDrag} from "~/composables/usePanelDrag";
+import {usePanelResize} from "~/composables/usePanelResize";
+import {useCanvasPan} from "~/composables/useCanvasPan";
+import {usePanelAlignment} from "~/composables/usePanelAlignment";
 
 import Panel from "~/components/Panel.vue";
 import DashboardControls from "~/components/Dashboard/DashboardControls.vue";
@@ -340,26 +347,21 @@ const ajustarVistaGlobal = () => {
     ajustarZoomATodos(minX, minY, maxX, maxY, contenedorRef.value.clientWidth, contenedorRef.value.clientHeight, 50);
 };
 
-// --- Cargar Tablero desde URL ---
 const cargarTableroDesdeUrl = async () => {
     const boardId = route.query.id as string;
 
     if (boardId) {
         cargandoTablero.value = true;
         try {
-            // Hacemos fetch a la API de tableros
+
             const { data, error } = await useFetch('/api/myBoards');
 
             if (data.value && Array.isArray(data.value)) {
-                // Buscamos el tablero específico en el array devuelto
-                // NOTA: En una API real, harías useFetch(`/api/boards/${boardId}`)
+
                 const tableroEncontrado = data.value.find((b: any) => b.id === boardId);
 
                 if (tableroEncontrado && tableroEncontrado.panels) {
-                    // Cargar los paneles en el estado local
-                    // Si 'importarPaneles' acepta JSON string, convertimos:
-                    // importarPaneles(JSON.stringify(tableroEncontrado.panels));
-                    // O si tenemos acceso directo al ref 'paneles', asignamos:
+
                     paneles.value = JSON.parse(JSON.stringify(tableroEncontrado.panels));
 
                     // Ajustar vista después de cargar
@@ -383,14 +385,14 @@ const cargarTableroDesdeUrl = async () => {
             toast.add({
                 title: 'Error',
                 description: 'No se pudo cargar el tablero.',
-                color: 'red',
+                color: 'error',
                 icon: 'i-heroicons-exclamation-circle'
             });
         } finally {
             cargandoTablero.value = false;
         }
     } else {
-        // Si no hay ID, limpiamos para empezar de cero
+
         limpiarTodos();
     }
 };
