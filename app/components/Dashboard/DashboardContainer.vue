@@ -1,5 +1,11 @@
 <template>
-    <div class="flex flex-col h-full ">
+    <div class="flex flex-col h-full relative">
+        <!-- Loader superpuesto mientras carga -->
+        <div v-if="cargandoTablero" class="absolute inset-0 z-[100] bg-white/80 dark:bg-neutral-950/80 flex flex-col items-center justify-center backdrop-blur-sm">
+            <UIcon name="i-heroicons-arrow-path" class="w-10 h-10 text-primary animate-spin mb-3" />
+            <p class="text-sm text-gray-600 dark:text-gray-300 font-medium">Cargando tablero...</p>
+        </div>
+
         <div class="flex flex-col flex-1 max-w-screen mx-auto w-full">
             <!-- Contenedor del Canvas -->
             <div
@@ -180,13 +186,14 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { useRoute } from 'vue-router'; // Importar useRoute para leer la URL
 import type { Panel as PanelInterface, PanelType, PanelData, GraficoData, EstadisticaData, TablaData } from "~/types/panel";
 
 import { usePanelManager } from "~/composables/usePanelManager";
 import { usePanelDrag } from "~/composables/usePanelDrag";
 import { usePanelResize } from "~/composables/usePanelResize";
 import { useCanvasPan } from "~/composables/useCanvasPan";
-import { usePanelAlignment } from "~/composables/usePanelAlignment"; // Importamos el nuevo composable
+import { usePanelAlignment } from "~/composables/usePanelAlignment";
 
 import Panel from "~/components/Panel.vue";
 import DashboardControls from "~/components/Dashboard/DashboardControls.vue";
@@ -196,8 +203,10 @@ import SlideoverConfigGrafico from "~/components/SlideoverConfigGrafico.vue";
 import SlideoverConfigEstadistica from "~/components/SlideoverConfigEstadistica.vue";
 import SlideoverConfigTabla from "~/components/SlideoverConfigTabla.vue";
 
+const route = useRoute(); // Hook para acceder a la ruta actual
 const contenedorRef = ref<HTMLElement | null>(null);
 const mapaVisible = ref(true);
+const cargandoTablero = ref(false); // Estado de carga
 
 const modoPanActivo = ref(true);
 const modoDragActivo = ref(true);
@@ -219,6 +228,7 @@ const {
     autoOrganizarPaneles,
     autoOrganizarMasonry,
     activarPanel,
+    importarPaneles // Necesitaremos esta función si existe, o asignamos directamente
 } = usePanelManager();
 
 const {
@@ -330,6 +340,62 @@ const ajustarVistaGlobal = () => {
     ajustarZoomATodos(minX, minY, maxX, maxY, contenedorRef.value.clientWidth, contenedorRef.value.clientHeight, 50);
 };
 
+// --- Cargar Tablero desde URL ---
+const cargarTableroDesdeUrl = async () => {
+    const boardId = route.query.id as string;
+
+    if (boardId) {
+        cargandoTablero.value = true;
+        try {
+            // Hacemos fetch a la API de tableros
+            const { data, error } = await useFetch('/api/myBoards');
+
+            if (data.value && Array.isArray(data.value)) {
+                // Buscamos el tablero específico en el array devuelto
+                // NOTA: En una API real, harías useFetch(`/api/boards/${boardId}`)
+                const tableroEncontrado = data.value.find((b: any) => b.id === boardId);
+
+                if (tableroEncontrado && tableroEncontrado.panels) {
+                    // Cargar los paneles en el estado local
+                    // Si 'importarPaneles' acepta JSON string, convertimos:
+                    // importarPaneles(JSON.stringify(tableroEncontrado.panels));
+                    // O si tenemos acceso directo al ref 'paneles', asignamos:
+                    paneles.value = JSON.parse(JSON.stringify(tableroEncontrado.panels));
+
+                    // Ajustar vista después de cargar
+                    setTimeout(() => {
+                        ajustarVistaGlobal();
+                    }, 100);
+
+                    const toast = useToast();
+                    toast.add({
+                        title: 'Tablero Cargado',
+                        description: `Se cargó "${tableroEncontrado.title}" correctamente.`,
+                        icon: 'i-heroicons-check-circle'
+                    });
+                } else {
+                    console.warn(`Tablero con ID ${boardId} no encontrado o sin paneles.`);
+                }
+            }
+        } catch (e) {
+            console.error("Error al cargar el tablero:", e);
+            const toast = useToast();
+            toast.add({
+                title: 'Error',
+                description: 'No se pudo cargar el tablero.',
+                color: 'red',
+                icon: 'i-heroicons-exclamation-circle'
+            });
+        } finally {
+            cargandoTablero.value = false;
+        }
+    } else {
+        // Si no hay ID, limpiamos para empezar de cero
+        limpiarTodos();
+    }
+};
+
+// Event Handlers
 const handleMouseDown = (event: MouseEvent) => {
     if (modoPanActivo.value && (event.shiftKey || event.button === 1)) {
         iniciarPan(event);
@@ -451,6 +517,9 @@ const autoOrganizar = () => { autoOrganizarPaneles(); resetearCanvas(); };
 const autoOrganizarPanelesMansory = () => { autoOrganizarMasonry(); resetearCanvas(); };
 
 onMounted(() => {
+    // Intentar cargar tablero si hay ID en la URL
+    cargarTableroDesdeUrl();
+
     document.addEventListener("mousedown", (e) => {
         if (e.button === 1) e.preventDefault();
     });
