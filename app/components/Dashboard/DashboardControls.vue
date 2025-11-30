@@ -72,7 +72,7 @@
     </UFieldGroup>
 
     <!-- Dropdown para agregar paneles con búsqueda -->
-    <UPopover :popper="{ placement: 'bottom-end' }">
+      <UPopover :popper="{ placement: 'bottom-end' }" mode="clik" :open-delay="500" :close-delay="300">
       <UButton
         icon="i-heroicons-plus-circle"
         trailing-icon="i-heroicons-chevron-down"
@@ -262,8 +262,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import type { PanelType } from "~/types/panel";
+import {computed, ref} from "vue";
+import type {PanelType} from "~/types/panel";
 
 interface Props {
   totalPaneles: number;
@@ -363,13 +363,7 @@ const agregarPanel = (tipo: PanelType) => {
   emit("add-panel", tipo);
   busqueda.value = "";
 
-  toast.add({
-    title: "Panel agregado",
-    description: `Se agregó un panel de tipo ${
-      tiposPaneles.find((t) => t.value === tipo)?.label
-    }`,
-    icon: "i-heroicons-check-circle",
-  });
+
 };
 
 const confirmarLimpiar = () => {

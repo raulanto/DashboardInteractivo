@@ -15,6 +15,8 @@
                @mousedown="handleDragStart"
                @mouseenter="mostrarControles = true"
                @mouseleave="mostrarControles = false"
+               spotlight
+               spotlight-color="primary"
         >
 
 
