@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { NavigationMenuItem } from "@nuxt/ui";
+import type {NavigationMenuItem} from "@nuxt/ui";
 
 const route = useRoute();
 const toast = useToast();
@@ -15,7 +15,16 @@ const links = [
             onSelect: () => {
                 open.value = false;
             },
-        }]
+        },
+        {
+            label: "Datasets",
+            icon: "i-lucide-house",
+            to: "/globaldata/data",
+            onSelect: () => {
+                open.value = false;
+            },
+        }
+    ]
 
 ] satisfies NavigationMenuItem[][];
 
