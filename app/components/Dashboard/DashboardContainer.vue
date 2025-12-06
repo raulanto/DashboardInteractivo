@@ -26,53 +26,23 @@
                 @wheel.prevent="handleWheel"
             >
                 <!-- Canvas transformable -->
-                <div
-                    class="canvas-wrapper absolute inset-0"
-                    :style="canvasStyle"
-                    :class="obtenerCursorClase"
+                <CanvasLayer
+                    :canvas="canvas"
+                    :is-interacting="isInteracting"
                 >
                     <!-- Grid de fondo infinito -->
-                    <div class="absolute pointer-events-none" :style="gridStyle"></div>
-
+                    <template #grid>
+                        <CanvasGrid
+                            :x="canvas.x"
+                            :y="canvas.y"
+                            :scale="canvas.scale"
+                        />
+                    </template>
                     <!-- CAPA DE GUÍAS -->
-
-                    <!-- 1. Guías de Alineación (Rojas - Snap) -->
-                    <template v-for="(guia, i) in alignmentGuides" :key="`align-${i}`">
-                        <div
-                            class="absolute bg-red-500 z-40 pointer-events-none"
-                            :style="{
-                                left: guia.type === 'vertical' ? `${guia.pos}px` : `${guia.start}px`,
-                                top: guia.type === 'horizontal' ? `${guia.pos}px` : `${guia.start}px`,
-                                width: guia.type === 'vertical' ? '1px' : `${guia.length}px`,
-                                height: guia.type === 'horizontal' ? '1px' : `${guia.length}px`
-                            }"
-                        ></div>
-                    </template>
-
-                    <!-- 2. Guías de Medición (Azules - Margen) -->
-                    <template v-for="(measure, i) in measurementGuides" :key="`measure-${i}`">
-                        <div
-                            class="absolute flex items-center justify-center z-50 pointer-events-none"
-                            :class="measure.type === 'horizontal' ? 'flex-row' : 'flex-col'"
-                            :style="{
-                                left: `${measure.x}px`,
-                                top: `${measure.y}px`,
-                                width: measure.type === 'horizontal' ? `${measure.length}px` : '1px',
-                                height: measure.type === 'vertical' ? `${measure.length}px` : '1px'
-                            }"
-                        >
-                            <!-- Línea punteada -->
-                            <div class="absolute bg-blue-500/50"
-                                 :class="measure.type === 'horizontal' ? 'h-px w-full' : 'w-px h-full'"
-                            ></div>
-
-                            <!-- Etiqueta de valor -->
-                            <div class="relative bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm z-10 whitespace-nowrap">
-                                {{ measure.value }}px
-                            </div>
-                        </div>
-                    </template>
-
+                    <CanvasGuides
+                        :alignment-guides="alignmentGuides"
+                        :measurement-guides="measurementGuides"
+                    />
                     <!-- Paneles -->
                     <Panel
                         v-for="panel in paneles"
@@ -86,7 +56,7 @@
                         @update:data="actualizarDataPanel(panel.id, $event)"
                         @open-config="abrirConfigPanel(panel)"
                     />
-                </div>
+                </CanvasLayer>
 
                 <!-- Indicador de coordenadas y modos -->
                 <div class="absolute bottom-4 left-4 space-y-2 pointer-events-none">
@@ -124,8 +94,6 @@
                 <div
                     class="p-2 w-fit -mt-2 absolute top-4 left-1/2 transform -translate-x-1/2 pointer-events-auto z-10 bg-neutral-100/80 dark:bg-neutral-950 rounded-md shadow-md"
                 >
-
-
                     <DashboardControls
                         :total-paneles="totalPaneles"
                         :zoom="canvas.scale"
@@ -209,6 +177,9 @@ import MiniMap from "~/components/MiniMap.vue";
 import SlideoverConfigGrafico from "~/components/SlideoverConfigGrafico.vue";
 import SlideoverConfigEstadistica from "~/components/SlideoverConfigEstadistica.vue";
 import SlideoverConfigTabla from "~/components/SlideoverConfigTabla.vue";
+import CanvasGrid from "~/components/Dashboard/editor/CanvasGrid.vue";
+import CanvasGuides from "~/components/Dashboard/editor/CanvasGuides.vue";
+import CanvasLayer from "~/components/Dashboard/editor/CanvasLayer.vue";
 
 const route = useRoute(); // Hook para acceder a la ruta actual
 const contenedorRef = ref<HTMLElement | null>(null);
@@ -271,42 +242,7 @@ const {
     limpiarGuias
 } = usePanelAlignment();
 
-const canvasStyle = computed(() => ({
-    transform: `translate(${canvas.value.x}px, ${canvas.value.y}px) scale(${canvas.value.scale})`,
-    transformOrigin: "0 0",
-    transition:
-        canvas.value.panning || isDragging.value || isResizing.value
-            ? "none"
-            : "transform 0.3s ease-out",
-}));
 
-const gridStyle = computed(() => {
-    const size = 50 * canvas.value.scale;
-    const offsetX = canvas.value.x % size;
-    const offsetY = canvas.value.y % size;
-
-    return {
-        backgroundImage: `
-            linear-gradient(to right, rgba(200, 200, 200, 0.2) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(200, 200, 200, 0.2) 1px, transparent 1px)
-        `,
-        backgroundSize: `${size}px ${size}px`,
-        backgroundPosition: `${offsetX}px ${offsetY}px`,
-        width: "10000px",
-        height: "10000px",
-        left: "-5000px",
-        top: "-5000px",
-    };
-});
-
-const obtenerCursorClase = computed(() => {
-    if (canvas.value.panning) return "cursor-grabbing";
-    if (isDragging.value || isResizing.value) return "";
-    if (modoPanActivo.value && !modoDragActivo.value) return "cursor-grab";
-    if (!modoPanActivo.value && modoDragActivo.value) return "cursor-move";
-    if (modoPanActivo.value && modoDragActivo.value) return "cursor-grab";
-    return "cursor-default";
-});
 
 const toggleModoPan = () => {
     modoPanActivo.value = !modoPanActivo.value;
@@ -526,7 +462,11 @@ onMounted(() => {
         if (e.button === 1) e.preventDefault();
     });
 });
-
+const isInteracting = computed(() =>
+    canvas.value.panning ||
+    isDragging.value ||
+    isResizing.value
+);
 onBeforeUnmount(() => {
     handleMouseUp();
 });

@@ -1,6 +1,6 @@
 // types/panel.ts
 
-export type PanelType = 'estadistica' | 'grafico' | 'lista' | 'tabla' | 'mapa' | 'calendario' | 'notas'
+export type PanelType = 'estadistica' | 'grafico' | 'lista' | 'tabla' | 'mapa' | 'calendario' | 'notas' | 'img'
 
 export interface PanelPosition {
     x: number
