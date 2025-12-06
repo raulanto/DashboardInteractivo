@@ -108,7 +108,7 @@
             <UButton
               v-for="tipo in panelesFiltrados"
               :key="tipo.value"
-              @click="agregarPanel(tipo.value)"
+              @click="agregarPanel(tipo)"
               variant="ghost"
               block
               class="justify-start mb-1"

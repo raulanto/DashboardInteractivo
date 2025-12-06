@@ -59,38 +59,16 @@
                 </CanvasLayer>
 
                 <!-- Indicador de coordenadas y modos -->
-                <div class="absolute bottom-4 left-4 space-y-2 pointer-events-none">
-                    <!-- Info del canvas -->
-                    <div
-                        class="px-3 py-2 bg-black/50 text-white text-xs rounded-lg font-mono"
-                    >
-                        <div>
-                            Canvas: X: {{ Math.round(canvas.x) }}, Y:
-                            {{ Math.round(canvas.y) }}
+                <div class="absolute bottom-4 left-4 pointer-events-none space-y-2 z-50">
+                    <div class="px-3 py-2 bg-neutral-900/80 text-white text-xs rounded-lg font-mono backdrop-blur-sm border border-white/10">
+                        <div class="flex gap-4">
+                            <span>X: {{ Math.round(canvas.x) }}</span>
+                            <span>Y: {{ Math.round(canvas.y) }}</span>
+                            <span class="text-primary-400">Scale: {{ Math.round(canvas.scale * 100) }}%</span>
                         </div>
-                        <div>Zoom: {{ Math.round(canvas.scale * 100) }}%</div>
-                        <div>Paneles: {{ totalPaneles }}</div>
                     </div>
 
-                    <!-- Indicadores de modo -->
-                    <div class="flex gap-2">
-                        <div
-                            v-if="modoPanActivo"
-                            class="px-3 py-1.5 bg-blue-500 text-white text-xs rounded-lg font-medium flex items-center gap-1.5 animate-pulse"
-                        >
-                            <UIcon name="i-heroicons-hand-raised" class="w-4 h-4" />
-                            Modo Pan Activo
-                        </div>
-                        <div
-                            v-if="modoDragActivo"
-                            class="px-3 py-1.5 bg-green-500 text-white text-xs rounded-lg font-medium flex items-center gap-1.5 animate-pulse"
-                        >
-                            <UIcon name="i-heroicons-arrows-pointing-out" class="w-4 h-4" />
-                            Modo Drag Activo
-                        </div>
-                    </div>
                 </div>
-
                 <div
                     class="p-2 w-fit -mt-2 absolute top-4 left-1/2 transform -translate-x-1/2 pointer-events-auto z-10 bg-neutral-100/80 dark:bg-neutral-950 rounded-md shadow-md"
                 >
