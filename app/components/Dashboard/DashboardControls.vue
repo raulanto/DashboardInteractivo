@@ -1,216 +1,134 @@
 <template>
-  <div class="dashboard-controls flex flex-wrap items-center gap-3 mb-0.5">
-    <UTooltip text="Mostrar Mapa">
-      <UButton
-        icon="i-heroicons-map"
-        @click="$emit('toggle-map')"
-        :color="mapaVisible ? 'primary' : 'neutral'"
-        :variant="mapaVisible ? 'solid' : 'soft'"
-      />
-    </UTooltip>
 
-    <UFieldGroup>
-      <UTooltip text="Modo Pan: Mover el canvas">
-        <UButton
-          icon="i-heroicons-hand-raised"
-          :color="modoPanActivo ? 'primary' : 'neutral'"
-          :variant="modoPanActivo ? 'solid' : 'soft'"
-          @click="$emit('toggle-pan')"
-        >
-          {{ modoPanActivo ? "Pan ON" : "Pan OFF" }}
-        </UButton>
+  <div
+    class="p-2 w-fit -mt-2 absolute top-4 left-1/2 transform -translate-x-1/2 pointer-events-auto z-10 bg-neutral-100/80 dark:bg-neutral-950 rounded-md shadow-md">
+
+    <div class="dashboard-controls flex flex-wrap items-center gap-3 mb-0.5">
+      <UTooltip text="Mostrar Mapa">
+        <UButton icon="i-heroicons-map" @click="$emit('toggle-map')" :color="mapaVisible ? 'primary' : 'neutral'"
+          :variant="mapaVisible ? 'solid' : 'soft'" />
       </UTooltip>
 
-      <UTooltip text="Modo Drag: Arrastrar paneles">
-        <UButton
-          icon="i-heroicons-arrows-pointing-out"
-          :color="modoDragActivo ? 'success' : 'neutral'"
-          :variant="modoDragActivo ? 'solid' : 'soft'"
-          @click="$emit('toggle-drag')"
-        >
-          {{ modoDragActivo ? "Drag ON" : "Drag OFF" }}
-        </UButton>
-      </UTooltip>
-    </UFieldGroup>
+      <UFieldGroup>
+        <UTooltip text="Modo Pan: Mover el canvas">
+          <UButton icon="i-heroicons-hand-raised" :color="modoPanActivo ? 'primary' : 'neutral'"
+            :variant="modoPanActivo ? 'solid' : 'soft'" @click="$emit('toggle-pan')">
+            {{ modoPanActivo ? "Pan ON" : "Pan OFF" }}
+          </UButton>
+        </UTooltip>
 
-    <!-- Grupo de controles de vista -->
-    <UFieldGroup size="md" orientation="horizontal">
-      <UTooltip text="Resetear vista (R)">
-        <UButton
-          icon="i-heroicons-arrow-path"
-          variant="soft"
-          @click="$emit('reset-view')"
-        />
-      </UTooltip>
+        <UTooltip text="Modo Drag: Arrastrar paneles">
+          <UButton icon="i-heroicons-arrows-pointing-out" :color="modoDragActivo ? 'success' : 'neutral'"
+            :variant="modoDragActivo ? 'solid' : 'soft'" @click="$emit('toggle-drag')">
+            {{ modoDragActivo ? "Drag ON" : "Drag OFF" }}
+          </UButton>
+        </UTooltip>
+      </UFieldGroup>
 
-      <div
-        class="border-l border-neutral-300 dark:border-neutral-600 h-8"
-      ></div>
+      <!-- Grupo de controles de vista -->
+      <UFieldGroup size="md" orientation="horizontal">
+        <UTooltip text="Resetear vista (R)">
+          <UButton icon="i-heroicons-arrow-path" variant="soft" @click="$emit('reset-view')" />
+        </UTooltip>
 
-      <UTooltip text="Alejar (-)">
-        <UButton
-          icon="i-heroicons-magnifying-glass-plus"
-          variant="soft"
-          @click="$emit('zoom-out')"
-        />
-      </UTooltip>
+        <div class="border-l border-neutral-300 dark:border-neutral-600 h-8"></div>
 
-      <UButton
-        :label="`${zoomPercentage}%`"
-        variant="soft"
-        disabled
-        class="min-w-[70px]"
-      />
+        <UTooltip text="Alejar (-)">
+          <UButton icon="i-heroicons-magnifying-glass-plus" variant="soft" @click="$emit('zoom-out')" />
+        </UTooltip>
 
-      <UTooltip text="Acercar (+)">
-        <UButton
-          icon="i-heroicons-magnifying-glass-minus"
-          variant="soft"
-          @click="$emit('zoom-in')"
-        />
-      </UTooltip>
-    </UFieldGroup>
+        <UButton :label="`${zoomPercentage}%`" variant="soft" disabled class="min-w-[70px]" />
 
-    <!-- Dropdown para agregar paneles con búsqueda -->
+        <UTooltip text="Acercar (+)">
+          <UButton icon="i-heroicons-magnifying-glass-minus" variant="soft" @click="$emit('zoom-in')" />
+        </UTooltip>
+      </UFieldGroup>
+
+      <!-- Dropdown para agregar paneles con búsqueda -->
       <UPopover :popper="{ placement: 'bottom-end' }" mode="clik" :open-delay="500" :close-delay="300">
-      <UButton
-        icon="i-heroicons-plus-circle"
-        trailing-icon="i-heroicons-chevron-down"
-        color="primary"
-        size="md"
-      >
-        Agregar Panel
-      </UButton>
+        <UButton icon="i-heroicons-plus-circle" trailing-icon="i-heroicons-chevron-down" color="primary" size="md">
+          Agregar Panel
+        </UButton>
 
-      <template #content>
-        <div class="p-2 w-72">
-          <!-- Búsqueda -->
-          <UInput
-            v-model="busqueda"
-            icon="i-heroicons-magnifying-glass"
-            placeholder="Buscar tipo de panel..."
-            class="mb-2 w-full"
-          />
+        <template #content>
+          <div class="p-2 w-72">
+            <!-- Búsqueda -->
+            <UInput v-model="busqueda" icon="i-heroicons-magnifying-glass" placeholder="Buscar tipo de panel..."
+              class="mb-2 w-full" />
 
-          <!-- Lista de paneles filtrados -->
-          <div class="max-h-[400px] overflow-y-auto">
-            <div
-              v-if="panelesFiltrados.length === 0"
-              class="text-center py-8 text-neutral-500"
-            >
-              <UIcon
-                name="i-heroicons-face-frown"
-                class="w-8 h-8 mx-auto mb-2"
-              />
-              <p class="text-sm">No se encontraron paneles</p>
-            </div>
-
-            <UButton
-              v-for="tipo in panelesFiltrados"
-              :key="tipo.value"
-              @click="agregarPanel(tipo)"
-              variant="ghost"
-              block
-              class="justify-start mb-1"
-            >
-              <template #leading>
-                <span class="text-2xl">{{ tipo.icono }}</span>
-              </template>
-
-              <div class="flex-1 text-left">
-                <div
-                  class="text-sm font-medium text-neutral-900 dark:text-white"
-                >
-                  {{ tipo.label }}
-                </div>
-                <div class="text-xs text-neutral-500 dark:text-neutral-400">
-                  {{ tipo.descripcion }}
-                </div>
+            <!-- Lista de paneles filtrados -->
+            <div class="max-h-[400px] overflow-y-auto">
+              <div v-if="panelesFiltrados.length === 0" class="text-center py-8 text-neutral-500">
+                <UIcon name="i-heroicons-face-frown" class="w-8 h-8 mx-auto mb-2" />
+                <p class="text-sm">No se encontraron paneles</p>
               </div>
 
-              <template #trailing>
-                <UKbd>{{ tipo.atajo }}</UKbd>
-              </template>
-            </UButton>
+              <UButton v-for="tipo in panelesFiltrados" :key="tipo.value" @click="agregarPanel(tipo.value)"
+                variant="ghost" block class="justify-start mb-1">
+                <template #leading>
+                  <span class="text-2xl">{{ tipo.icono }}</span>
+                </template>
+
+                <div class="flex-1 text-left">
+                  <div class="text-sm font-medium text-neutral-900 dark:text-white">
+                    {{ tipo.label }}
+                  </div>
+                  <div class="text-xs text-neutral-500 dark:text-neutral-400">
+                    {{ tipo.descripcion }}
+                  </div>
+                </div>
+
+                <template #trailing>
+                  <UKbd>{{ tipo.atajo }}</UKbd>
+                </template>
+              </UButton>
+            </div>
+
+            <!-- Separador -->
+            <USeparator class="my-2" />
+
+            <!-- Acciones rápidas -->
+            <div class="flex gap-2">
+              <UButton icon="i-heroicons-sparkles" label="Plantilla" variant="ghost" size="sm" block
+                @click="agregarPlantilla" />
+              <UButton icon="i-heroicons-squares-plus" label="Panel personalizado" variant="ghost" size="sm" block
+                @click="abrirCrearCustom" />
+            </div>
           </div>
+        </template>
+      </UPopover>
 
-          <!-- Separador -->
-          <USeparator class="my-2" />
-
-          <!-- Acciones rápidas -->
-          <div class="flex gap-2">
-            <UButton
-              icon="i-heroicons-sparkles"
-              label="Plantilla"
-              variant="ghost"
-              size="sm"
-              block
-              @click="agregarPlantilla"
-            />
-            <UButton
-              icon="i-heroicons-squares-plus"
-              label="Panel personalizado"
-              variant="ghost"
-              size="sm"
-              block
-              @click="abrirCrearCustom"
-            />
-          </div>
-        </div>
-      </template>
-    </UPopover>
-
-    <!-- Botón de limpiar -->
-    <UTooltip text="Eliminar todos los paneles" v-if="totalPaneles > 0">
-      <UButton
-        icon="i-heroicons-trash"
-        variant="soft"
-        @click="confirmarLimpiar"
-      >
-        Limpiar ({{ totalPaneles }})
-      </UButton>
-    </UTooltip>
-
-    <UPopover>
-      <UTooltip text="Organizar paneles">
-        <UButton icon="i-heroicons-squares-2x2" variant="soft" />
+      <!-- Botón de limpiar -->
+      <UTooltip text="Eliminar todos los paneles" v-if="totalPaneles > 0">
+        <UButton icon="i-heroicons-trash" variant="soft" @click="confirmarLimpiar">
+          Limpiar ({{ totalPaneles }})
+        </UButton>
       </UTooltip>
 
-      <template #content>
-        <div class="p-2 w-48">
-          <UButton
-            icon="i-heroicons-view-columns"
-            label="Grid 3 columnas"
-            variant="ghost"
-            block
-            class="justify-start mb-1"
-            @click="$emit('auto-organize')"
-          />
-          <UButton
-            icon="i-heroicons-squares-plus"
-            label="Layout destacado"
-            variant="ghost"
-            block
-            class="justify-start"
-            @click="$emit('auto-organize-masonry')"
-          />
-        </div>
-      </template>
-    </UPopover>
+      <UPopover>
+        <UTooltip text="Organizar paneles">
+          <UButton icon="i-heroicons-squares-2x2" variant="soft" />
+        </UTooltip>
 
+        <template #content>
+          <div class="p-2 w-48">
+            <UButton icon="i-heroicons-view-columns" label="Grid 3 columnas" variant="ghost" block
+              class="justify-start mb-1" @click="$emit('auto-organize')" />
+            <UButton icon="i-heroicons-squares-plus" label="Layout destacado" variant="ghost" block
+              class="justify-start" @click="$emit('auto-organize-masonry')" />
+          </div>
+        </template>
+      </UPopover>
+
+    </div>
   </div>
 
   <!-- Modal de confirmación mejorado -->
   <UModal v-model:open="mostrarModalConfirmacion">
     <template #header>
       <div class="flex items-center gap-3">
-        <div
-          class="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30"
-        >
-          <UIcon
-            name="i-heroicons-exclamation-triangle"
-            class="w-6 h-6 text-red-600 dark:text-red-400"
-          />
+        <div class="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+          <UIcon name="i-heroicons-exclamation-triangle" class="w-6 h-6 text-red-600 dark:text-red-400" />
         </div>
         <div>
           <h3 class="text-lg font-semibold text-neutral-900 dark:text-white">
@@ -224,14 +142,8 @@
     </template>
     <template #body>
       <div class="space-y-3">
-        <UAlert
-          icon="i-heroicons-information-circle"
-          variant="subtle"
-          title="¡Atención!"
-          :description="`Estás a punto de eliminar ${totalPaneles} ${
-            totalPaneles === 1 ? 'panel' : 'paneles'
-          }.`"
-        />
+        <UAlert icon="i-heroicons-information-circle" variant="subtle" title="¡Atención!" :description="`Estás a punto de eliminar ${totalPaneles} ${totalPaneles === 1 ? 'panel' : 'paneles'
+          }.`" />
 
         <div class="text-sm text-neutral-600 dark:text-neutral-300">
           <p>Se eliminarán:</p>
@@ -246,24 +158,16 @@
 
     <template #footer>
       <div class="flex justify-end gap-3">
-        <UButton
-          label="Cancelar"
-          variant="ghost"
-          @click="mostrarModalConfirmacion = false"
-        />
-        <UButton
-          label="Sí, eliminar todo"
-          icon="i-heroicons-trash"
-          @click="confirmarYLimpiar"
-        />
+        <UButton label="Cancelar" variant="ghost" @click="mostrarModalConfirmacion = false" />
+        <UButton label="Sí, eliminar todo" icon="i-heroicons-trash" @click="confirmarYLimpiar" />
       </div>
     </template>
   </UModal>
 </template>
 
 <script setup lang="ts">
-import {computed, ref} from "vue";
-import type {PanelType} from "~/types/panel";
+import { computed, ref } from "vue";
+import type { PanelType } from "~/types/panel";
 
 interface Props {
   totalPaneles: number;
@@ -399,6 +303,4 @@ const abrirCrearCustom = () => {
 };
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

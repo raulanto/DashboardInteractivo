@@ -1,17 +1,15 @@
 <template>
-    <div v-if="data" class="h-full flex flex-col">
-        <!-- Encabezado con botón de configuración -->
+    <div v-if="data" class="h-full flex flex-col group">
         <div
-            class="flex items-center justify-between mb-3 pb-2 border-b border-neutral-200 dark:border-neutral-700"
+            class="flex items-center justify-between mb-2 pb-2 border-b border-neutral-200 dark:border-neutral-700"
         >
             <div class="flex flex-col items-start gap-1">
                 <div class="flex items-center gap-2">
                     <UIcon name="i-heroicons-chart-bar" class="w-4 h-4 text-primary" />
                     <span class="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-              {{ data.titulo || "Gráfico" }}
-            </span>
+                        {{ data.titulo || "Gráfico" }}
+                    </span>
                 </div>
-                <!-- Badge de Dataset: Muestra nombre si existe, o alerta si no -->
                 <UBadge
                     v-if="data.datasetId"
                     :label="labelFuente"
@@ -21,23 +19,45 @@
                 />
             </div>
 
-            <UButton
-                icon="i-heroicons-cog-6-tooth"
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                @click="$emit('open-config')"
-            >
-                Configurar
-            </UButton>
+            <div class="flex items-center gap-1">
+                <UTooltip text="Filtrar rango de fechas">
+                    <UButton
+                        :icon="showFilter ? 'i-heroicons-funnel-solid' : 'i-heroicons-funnel'"
+                        size="xs"
+                        :color="showFilter ? 'primary' : 'neutral'"
+                        variant="ghost"
+                        @click="showFilter = !showFilter"
+                    />
+                </UTooltip>
+
+            </div>
         </div>
 
-        <!-- Gráfico -->
-        <div class="flex-1 min-h-0">
+        <div
+            v-if="showFilter && finalChartData.length > 1"
+            class="mb-4 px-2 py-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg border border-neutral-200 dark:border-neutral-700 animate-in slide-in-from-top-2 duration-200"
+        >
+            <div class="flex justify-between text-xs text-neutral-500 mb-2 font-mono">
+                <span>{{ formatDateLabel(rangeValue[0]) }}</span>
+                <span class="font-medium text-primary">Zoom: {{ rangePercentage }}%</span>
+                <span>{{ formatDateLabel(rangeValue[1]) }}</span>
+            </div>
+
+            <USlider
+                v-model="rangeValue"
+                :min="0"
+                :max="finalChartData.length - 1"
+                size="sm"
+                color="primary"
+                :step="1"
+            />
+        </div>
+
+        <div class="flex-1 min-h-0 relative">
             <client-only>
                 <AreaChart
-                    v-if="finalChartData.length > 0"
-                    :data="finalChartData"
+                    v-if="filteredData.length > 0"
+                    :data="filteredData"
                     :height="chartHeight"
                     :categories="finalCategories"
                     :y-grid-line="true"
@@ -46,9 +66,10 @@
                     :legend-position="legendPosition"
                     :hide-legend="false"
                 />
+
                 <div
                     v-else
-                    class="h-full flex flex-col items-center justify-center text-center p-4"
+                    class="h-full flex flex-col items-center justify-center text-center p-4 absolute inset-0"
                 >
                     <UIcon
                         name="i-heroicons-chart-bar-square"
@@ -77,11 +98,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import type { ComputedRef } from "vue";
 import { useGlobalDataStore } from '~/composables/useGlobalDataStore';
 import type { GraficoData, GraficoDataPoint } from "~/types/panel";
-
+// import { useDebounceFn } from '@vueuse/core'; // Opcional para optimización extrema
 
 interface Props {
     data: GraficoData;
@@ -93,12 +114,10 @@ defineEmits<{
     "open-config": [];
 }>();
 
-// Importamos datasets directamente para reactividad total
 const { datasets } = useGlobalDataStore();
 
-// Dataset global reactivo
-// IMPORTANTE: Buscamos directamente en datasets.value dentro del computed
-// Esto asegura que si 'datasets' cambia (al guardar/editar), esto se recalcula automáticamente.
+// --- LÓGICA DE DATOS EXISTENTE ---
+
 const globalDataset = computed(() => {
     if (!props.data.datasetId) return undefined;
     return datasets.value.find(d => d.id === props.data.datasetId);
@@ -112,30 +131,21 @@ const labelFuente = computed(() => {
     return `Error: Dataset no hallado`;
 });
 
-// Datos finales del gráfico
 const finalChartData = computed<GraficoDataPoint[]>(() => {
     if (globalDataset.value) {
-        // Mapeamos los datos globales. Si están vacíos, devolvemos array vacío.
         return (globalDataset.value.datos as GraficoDataPoint[]) || [];
     }
-    // Si no hay dataset global, usamos los datos locales
     return props.data.datos || [];
 });
 
-// Categorías/Series finales del gráfico
 const finalCategories: ComputedRef<Record<string, BulletLegendItemInterface>> = computed(() => {
-    // Si hay dataset global, generamos las categorías basadas en sus columnas
     if (globalDataset.value) {
         const categories: Record<string, BulletLegendItemInterface> = {};
-        // Asumimos que 'date' o 'fecha' es el eje X, el resto son series
         const seriesKeys = globalDataset.value.columnas.filter(c => c.toLowerCase() !== 'date' && c.toLowerCase() !== 'fecha');
-
         const coloresBase = ['#3b82f6', '#22c55e', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899'];
 
         seriesKeys.forEach((key, index) => {
-            // Intentamos mantener la configuración de color local si existe para esa llave
             const localSerieConfig = props.data.series?.find(s => s.key === key);
-
             categories[key] = {
                 name: localSerieConfig?.name || key,
                 color: localSerieConfig?.color || coloresBase[index % coloresBase.length]
@@ -144,7 +154,6 @@ const finalCategories: ComputedRef<Record<string, BulletLegendItemInterface>> = 
         return categories;
     }
 
-    // Comportamiento local (Legacy)
     const cats: Record<string, BulletLegendItemInterface> = {};
     if (props.data.series && props.data.series.length > 0) {
         props.data.series.forEach((serie) => {
@@ -157,17 +166,75 @@ const finalCategories: ComputedRef<Record<string, BulletLegendItemInterface>> = 
     return cats;
 });
 
-// Altura dinámica
+// --- NUEVA LÓGICA DE FILTRADO (UI/UX) ---
+
+const showFilter = ref(false);
+// Usamos índices (0 a N) en lugar de fechas para el slider, es más performante.
+const rangeValue = ref<[number, number]>([0, 0]);
+
+// Watcher inteligente: Si los datos cambian (carga inicial o cambio de dataset),
+// reseteamos el filtro para mostrar todo.
+watch(finalChartData, (newData) => {
+    if (newData && newData.length > 0) {
+        rangeValue.value = [0, newData.length - 1];
+    } else {
+        rangeValue.value = [0, 0];
+    }
+}, { immediate: true });
+
+// Computed principal para el gráfico: Corta el array basado en el slider
+const filteredData = computed(() => {
+    const data = finalChartData.value;
+    if (!data.length) return [];
+
+    // Validaciones de seguridad
+    const start = Math.max(0, rangeValue.value[0]);
+    const end = Math.min(data.length - 1, rangeValue.value[1]);
+
+    // Slice es eficiente, pero recuerda que el segundo argumento es exclusivo, por eso +1
+    // Si start > end (usuario cruza los sliders), slice devuelve array vacío automáticamente o podemos invertirlo
+    if (start > end) return data.slice(end, start + 1);
+
+    return data.slice(start, end + 1);
+});
+
+// Porcentaje visual de datos mostrados (UX)
+const rangePercentage = computed(() => {
+    const total = finalChartData.value.length;
+    if (!total) return 0;
+    const current = filteredData.value.length;
+    return Math.round((current / total) * 100);
+});
+
+// Helper para obtener fecha formateada basada en índice
+const formatDateLabel = (index: number): string => {
+    const item = finalChartData.value[index];
+    if (!item) return '';
+
+    const dateKey = Object.keys(item).find(k => k.toLowerCase() === 'date' || k.toLowerCase() === 'fecha') || 'date';
+    const val = item[dateKey];
+
+    if (val) {
+        try {
+            const date = new Date(val as string);
+            if (!isNaN(date.getTime())) {
+                return date.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: '2-digit' });
+            }
+        } catch (e) {}
+    }
+    return String(index);
+}
+
+
+// --- LÓGICA DE CONFIGURACIÓN DE GRÁFICO (LEGACY) ---
+
 const chartHeight = computed(() => 250);
 
-// Tipo de curva
 const curveType = computed(() => {
     const type = props.data.curveType || "monotoneX";
-    // Mapeo seguro al enum o valor por defecto
     return CurveType[type as keyof typeof CurveType] || CurveType.MonotoneX;
 });
 
-// Posición de la leyenda
 const legendPosition = computed(() => {
     const position = props.data.legendPosition || "top";
     return (
@@ -176,19 +243,20 @@ const legendPosition = computed(() => {
     );
 });
 
-// Formateador del eje X
-const xFormatter = (tick: number): string => {
-    const dataArray = finalChartData.value;
-    if (!dataArray || dataArray.length === 0) return "";
+// Formateador X (ligeramente ajustado para usar filteredData si fuera necesario, pero el índice se mantiene)
+// Nota: Unovis/Charts suelen usar el índice del array pasado.
+const xFormatter = (tickIndex: number): string => {
+    // IMPORTANTE: El tickIndex aquí viene del array YA FILTRADO (filteredData),
+    // así que accedemos a filteredData, no a finalChartData global.
+    const dataArray = filteredData.value;
 
-    const item = dataArray[tick];
+    if (!dataArray || dataArray.length === 0) return "";
+    const item = dataArray[tickIndex];
     if (!item) return "";
 
-    // Intentar encontrar la llave de fecha
     const dateKey = Object.keys(item).find(k => k.toLowerCase() === 'date' || k.toLowerCase() === 'fecha') || 'date';
     const val = item[dateKey];
 
-    // Formatear fecha si es válida
     if (val) {
         try {
             const date = new Date(val as string);
@@ -198,9 +266,7 @@ const xFormatter = (tick: number): string => {
                     day: "numeric",
                 });
             }
-        } catch (e) {
-            // Ignorar error
-        }
+        } catch (e) {}
         return String(val);
     }
     return "";
