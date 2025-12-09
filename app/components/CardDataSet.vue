@@ -20,7 +20,7 @@ import getIconForType from "~/utils/getIconForType";
 <template>
     <NuxtLink v-for="dataset in props.datasets" :key="dataset.id"
         :to="{ name: 'globaldata-id', params: { id: dataset.id } }" class="block group">
-        <UPageCard class="h-full bg-accented" :icon="getIconForType(dataset.tipo)" spotlight spotlight-color="primary">
+        <UPageCard class="h-full" :icon="getIconForType(dataset.tipo)" spotlight spotlight-color="primary">
             <div class="flex items-start justify-between mb-4">
                 <div class="flex items-center gap-3">
                     <div>
