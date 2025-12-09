@@ -6,7 +6,7 @@ definePageMeta({
     layout: 'board'
 })
 
-const { data: savedBoards, pending, error } = await useFetch<SavedBoard[]>('/api/myBoards')
+const { data: savedBoards, pending, error ,refresh} = await useFetch<SavedBoard[]>('/api/myBoards')
 
 
 const q = ref('')
@@ -55,21 +55,6 @@ const filteredBoards = computed(() => {
                 <UPageCTA variant="naked" class="overflow-hidden" title="Crea y administra tus tableros de control"
                     description="Organiza tus datos visualmente con nuestros tableros personalizables. ¡Comienza ahora!"
                     :links="links" />
-
-                <!-- Sección 1: Crear Nuevo -->
-                <!-- <section>
-                    <div class="flex items-center gap-2 mb-4">
-                        <UIcon name="i-heroicons-sparkles" class="w-5 h-5 text-primary" />
-                        <h2 class="text-lg font-medium text-neutral-900 dark:text-white">Acciones Rápidas</h2>
-                    </div>
-                    <UEmpty color="neutral" icon="i-heroicons-plus" title="Crear tablero"
-                        class="h-full border-2 border-dashed border-neutral-200 dark:border-neutral-800 rounded-lg flex flex-col items-center justify-center gap-2 p-6 hover:border-primary-500 hover:text-primary-500 transition-colors group"
-                        to="/board/CreateBoard">
-
-
-                    </UEmpty>
-
-                </section> -->
 
                 <USeparator />
 
