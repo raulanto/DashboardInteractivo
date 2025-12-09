@@ -18,39 +18,34 @@ import getIconForType from "~/utils/getIconForType";
 </script>
 
 <template>
-    <NuxtLink v-for="dataset in props.datasets" :key="dataset.id"
-        :to="{ name: 'globaldata-id', params: { id: dataset.id } }" class="block group">
-        <UPageCard class="h-full bg-accented" :icon="getIconForType(dataset.tipo)" spotlight spotlight-color="primary">
-            <div class="flex items-start justify-between mb-4">
-                <div class="flex items-center gap-3">
-                    <div>
-                        <h3 class="font-semibold line-clamp-1" :title="dataset.nombre">
-                            {{ dataset.nombre }}
-                        </h3>
-                        <p class="text-xs capitalize flex items-center gap-1 text-dimed">
-                            {{ dataset.tipo }} <span class="w-1 h-1 rounded-full"></span> ID:
-                            {{ dataset.id.substring(0, 8) }}...
-                        </p>
-                    </div>
+    <UPageCard v-for="dataset in props.datasets" :key="dataset.id"
+        class="group bg-accented cursor-pointer hover:ring-2 hover:ring-primary-500/50 transition-all duration-200 hover:-translate-y-1"
+        :icon="getIconForType(dataset.tipo)" :to="{ name: 'globaldata-id', params: { id: dataset.id } }" spotlight
+        spotlight-color="primary">
+        <div class="flex items-start justify-between mb-4">
+            <div class="flex items-center gap-3">
+                <div>
+                    <h3 class="font-semibold text-highlighted group-hover:text-primary transition-colors">
+                        {{ dataset.nombre }}
+                    </h3>
+                    <p class="text-xs capitalize flex items-center gap-1 text-dimed">
+                        {{ dataset.tipo }} <span class="w-1 h-1 rounded-full"></span> ID:
+                        {{ dataset.id.substring(0, 8) }}...
+                    </p>
                 </div>
             </div>
-            <USeparator/>
-            <div class="flex items-center justify-between pt-2">
-                <div class="flex gap-4 text-xs">
-                    <span class="flex items-center gap-1 text-default">
-                        <UIcon name="i-heroicons-table-cells" class="w-4 h-4" />
-                        {{ dataset.columnas.length }} cols
-                    </span>
-                    <span class="flex items-center gap-1 text-default">
-                        <UIcon name="i-heroicons-list-bullet" class="w-4 h-4" />
-                        {{ dataset.datos.length }} filas
-                    </span>
-                </div>
-                <UButton icon="i-heroicons-arrow-right" variant="ghost" />
+        </div>
+        <div class="flex items-center justify-between pt-2">
+            <div class="flex gap-2 text-xs">
 
+                <UBadge :label="dataset.columnas.length + ' columnas'" variant="subtle"
+                    icon="i-heroicons-table-cells" />
+                <UBadge :label="dataset.datos.length + ' filas'" variant="subtle" icon="i-heroicons-list-bullet" />
             </div>
-        </UPageCard>
-    </NuxtLink>
+
+        </div>
+    </UPageCard>
+
 </template>
 
 <style scoped></style>

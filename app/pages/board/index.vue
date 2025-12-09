@@ -6,7 +6,7 @@ definePageMeta({
     layout: 'board'
 })
 
-const { data: savedBoards, pending, error ,refresh} = await useFetch<SavedBoard[]>('/api/myBoards')
+const { data: savedBoards, pending, error, refresh } = await useFetch<SavedBoard[]>('/api/myBoards')
 
 
 const q = ref('')
@@ -38,14 +38,7 @@ const filteredBoards = computed(() => {
                 </template>
             </UDashboardNavbar>
 
-            <UDashboardToolbar>
-                <template #left>
-                    <div class="flex flex-col">
-                        <h1 class="text-xl font-semibold text-neutral-900 dark:text-white">Bienvenido de nuevo</h1>
 
-                    </div>
-                </template>
-            </UDashboardToolbar>
         </template>
 
         <template #body>
@@ -57,21 +50,20 @@ const filteredBoards = computed(() => {
                     :links="links" />
 
                 <USeparator />
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                        <UIcon name="i-heroicons-squares-2x2" class="w-5 h-5 text-neutral-500" />
+                        <h2 class="text-lg font-medium text-neutral-900 dark:text-white">Mis Tableros Guardados</h2>
+                        <!-- Usamos filteredBoards.length para que el contador se actualice al buscar -->
+                        <UBadge v-if="savedBoards" :label="filteredBoards.length" variant="subtle" />
+                    </div>
 
+                    <!-- 4. Conectamos el v-model aquí -->
+                    <UInput v-model="q" icon="i-heroicons-magnifying-glass" placeholder="Buscar tablero..." size="sm" />
+                </div>
                 <!-- Sección 2: Mis Tableros -->
                 <section>
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center gap-2">
-                            <UIcon name="i-heroicons-squares-2x2" class="w-5 h-5 text-neutral-500" />
-                            <h2 class="text-lg font-medium text-neutral-900 dark:text-white">Mis Tableros Guardados</h2>
-                            <!-- Usamos filteredBoards.length para que el contador se actualice al buscar -->
-                            <UBadge v-if="savedBoards" :label="filteredBoards.length" variant="subtle" />
-                        </div>
 
-                        <!-- 4. Conectamos el v-model aquí -->
-                        <UInput v-model="q" icon="i-heroicons-magnifying-glass" placeholder="Buscar tablero..."
-                            size="sm" />
-                    </div>
 
                     <!-- Estado de carga -->
                     <div v-if="pending" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -79,12 +71,24 @@ const filteredBoards = computed(() => {
                     </div>
 
                     <!-- Estado de error -->
-                    <UAlert v-else-if="error" title="Error al cargar tableros"
-                        description="No se pudieron recuperar tus tableros guardados." color="error" variant="subtle"
-                        icon="i-heroicons-exclamation-triangle" />
+                    <div v-else-if="error">
+                        <UEmpty variant="naked" icon="i-heroicons-squares-2x2" title="Sin tableros"
+                            description="Intenta refrescar la página." :actions="[
+                                {
+                                    icon: 'i-lucide-refresh-cw',
+                                    label: 'Refrescar',
+                                    color: 'error',
+                                    variant: 'soft',
+                                    onClick: () => refresh()
+                                }
+                            ]" />
+
+
+                    </div>
+
 
                     <!-- Lista de Tableros (Grid) -->
-                    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <UPageGrid class="gap-3">
 
                         <!-- 5. Pasamos filteredBoards en lugar de savedBoards -->
                         <Tableros :saved-boards="filteredBoards" />
@@ -105,7 +109,7 @@ const filteredBoards = computed(() => {
 
                         </UEmpty>
 
-                    </div>
+                    </UPageGrid>
 
                     <!-- Opcional: Mensaje si no hay resultados en la búsqueda -->
                     <div v-if="!pending && !error && filteredBoards.length === 0 && q"

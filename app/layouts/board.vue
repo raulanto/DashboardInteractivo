@@ -9,8 +9,8 @@ const open = ref(false);
 const links = [
     [
         {
-            label: "Inicio",
-            icon: "i-lucide-house",
+            label: "Tableros",
+            icon: "i-heroicons-squares-2x2",
             to: "/board",
             onSelect: () => {
                 open.value = false;
@@ -18,7 +18,7 @@ const links = [
         },
         {
             label: "Datasets",
-            icon: "i-lucide-house",
+            icon: "i-heroicons-circle-stack",
             to: "/globaldata/data",
             onSelect: () => {
                 open.value = false;

@@ -1,51 +1,78 @@
 <template>
-    <UDashboardPanel id="analytics-view" :ui="{ body: 'gap-0 sm:p-0 p-0 overflow-hidden flex flex-col h-full' }">
-        <!-- Navbar Superior -->
-        <UDashboardNavbar title="Explorador de Datos" :ui="{ right: 'gap-3' }">
-            <template #leading>
-                <UDashboardSidebarCollapse />
-            </template>
+    <UDashboardPanel id="analytics-view">
+        <template #header>
+            <!-- Navbar Superior -->
+            <UDashboardNavbar title="Explorador de Datos" :ui="{ right: 'gap-3' }">
+                <template #leading>
+                    <UDashboardSidebarCollapse />
+                </template>
 
-            <template #right>
-                <UButton icon="i-heroicons-arrow-path" variant="ghost" :loading="isLoading" @click="recargarDatos"
-                    tooltip="Recargar Datos" />
-            </template>
-        </UDashboardNavbar>
+                <template #right>
 
-        <!-- Contenido Principal -->
-        <div class="flex-1 overflow-y-auto p-4 sm:p-6 ">
-            <!-- Estado de Carga -->
-            <div v-if="isLoading && datasets.length === 0" class="space-y-4">
-                <USkeleton class="h-20 w-full" v-for="i in 5" :key="i" />
-            </div>
+                </template>
+            </UDashboardNavbar>
+        </template>
+        <template #body>
 
-            <!-- LISTA DE DATASETS (Catálogo) -->
-            <div v-else class="max-w-7xl mx-auto">
-                <div v-if="datasets.length === 0" class="text-center py-12 flex flex-col items-center">
-                    <div class="bg-elevated p-4 rounded-full mb-4">
-                        <UIcon name="i-heroicons-circle-stack" class="w-8 h-8 text-default" />
+            <div class="p-6 space-y-8">
+                <StarBg />
+                <UPageCTA variant="naked" class="overflow-hidden" title="Explora Datos Globales"
+                    description="Accede a una variedad de datasets globales para potenciar tus análisis y visualizaciones.">
+                </UPageCTA>
+                <USeparator />
+
+
+                <section class="flex items-center justify-between mb-4 mx-container mt-8">
+                    <div class="flex items-center gap-2">
+                        <UIcon name="i-heroicons-squares-2x2" class="w-5 h-5 text-neutral-500" />
+                        <h2 class="text-lg font-medium text-neutral-900 dark:text-white">Mis Tableros Guardados</h2>
+
+                        <UBadge v-if="datasets" :label="filteredBoards.length" variant="subtle" />
                     </div>
-                    <h3 class="text-lg font-medium text-default ">
-                        No hay datasets disponibles
-                    </h3>
-                    <p class="text-default mt-1">
-                        No se encontraron datos globales para mostrar.
-                    </p>
+
+                    <UInput v-model="q" icon="i-heroicons-magnifying-glass" placeholder="Buscar tablero..." size="sm" />
+                </section>
+
+
+
+                <!-- Estado de Carga -->
+                <div v-if="isLoading && datasets.length === 0" class="space-y-4">
+                    <USkeleton class="h-20 w-full" v-for="i in 5" :key="i" />
                 </div>
 
-                <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <!-- NuxtLink envuelve la tarjeta para navegación nativa -->
-                    <CardDataSet :datasets="datasets" />
+                <!-- LISTA DE DATASETS (Catálogo) -->
+                <div v-else class="">
+                    <div v-if="datasets.length === 0" class="">
+
+                        <UEmpty variant="naked" icon="i-heroicons-circle-stack" title="No hay datasets disponibles"
+                            description="No se encontraron datos globales para mostrar." :actions="[
+                                {
+                                    icon: 'i-lucide-refresh-cw',
+                                    label: 'Refrescar',
+                                    color: 'error',
+                                    variant: 'soft',
+                                    onClick: () => recargarDatos()
+                                }
+                            ]" />
+
+                    </div>
+
+                    <UPageGrid class="gap-3">
+                        <!-- NuxtLink envuelve la tarjeta para navegación nativa -->
+                        <CardDataSet :datasets="filteredBoards" />
+                    </UPageGrid>
                 </div>
+
+
             </div>
-        </div>
+
+        </template>
     </UDashboardPanel>
 </template>
 
 <script setup lang="ts">
 import { useGlobalDataStore } from "~/composables/useGlobalDataStore";
-import getIconForType from "~/utils/getIconForType";
-// Layout
+
 definePageMeta({
     layout: "board",
 });
@@ -53,9 +80,14 @@ definePageMeta({
 // Store
 const store = useGlobalDataStore();
 const { datasets, isLoading, recargarDatos } = store;
-
-// Helpers
-
+const filteredBoards = computed(() => {
+    if (!datasets.value) return []
+    if (!q.value) return datasets.value
+    return datasets.value.filter((board) => {
+        return board.nombre.toLowerCase().includes(q.value.toLowerCase())
+    })
+})
+const q = ref('')
 </script>
 
 <style scoped>
