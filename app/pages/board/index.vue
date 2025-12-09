@@ -6,7 +6,7 @@ definePageMeta({
     layout: 'board'
 })
 
-const { data: savedBoards, pending, error } = await useFetch<SavedBoard[]>('/api/myBoards')
+const { data: savedBoards, pending, error ,refresh} = await useFetch<SavedBoard[]>('/api/myBoards')
 
 
 const q = ref('')
@@ -94,9 +94,23 @@ const filteredBoards = computed(() => {
                     </div>
 
                     <!-- Estado de error -->
-                    <UAlert v-else-if="error" title="Error al cargar tableros"
-                        description="No se pudieron recuperar tus tableros guardados." color="error" variant="subtle"
-                        icon="i-heroicons-exclamation-triangle" />
+
+
+                    <div v-else-if="error">
+                        <UEmpty variant="naked" icon="i-heroicons-squares-2x2" title="Sin tableros"
+                            description="Intenta refrescar la página." :actions="[
+                                {
+                                    icon: 'i-lucide-refresh-cw',
+                                    label: 'Refrescar',
+                                    color: 'error',
+                                    variant: 'soft',
+                                    onClick: () => refresh()
+                                }
+                            ]" />
+
+
+                    </div>
+
 
                     <!-- Lista de Tableros (Grid) -->
                     <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
